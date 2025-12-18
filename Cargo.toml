@@ -1,0 +1,46 @@
+[package]
+name = "dprint-plugin-tombi"
+version = "0.1.0"
+edition = "2024"
+description = "A dprint plugin for formatting TOML files using Tombi"
+repository = "https://github.com/kjanat/dprint-plugin-tombi"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "generate-schema"
+path = "src/bin/generate_schema.rs"
+required-features = ["schema"]
+
+[dependencies]
+anyhow = "1.0"
+dprint-core = { version = "0.67.4", features = ["wasm"] }
+schemars = { version = "1.0", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+
+# Tombi from patched fork (WASM-compatible)
+tombi-config = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", features = ["serde"] }
+tombi-parser = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults" }
+tombi-toml-version = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt"] }
+tombi-formatter = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", default-features = false, features = ["native"] }
+tombi-schema-store = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", default-features = false, features = ["native"] }
+tombi-diagnostic = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", default-features = false, features = ["lsp"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tombi-formatter = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", default-features = false, features = ["wasm"] }
+tombi-schema-store = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", default-features = false, features = ["wasm"] }
+tombi-diagnostic = { git = "https://github.com/kjanat/tombi.git", branch = "fix/wasm-lsp-defaults", default-features = false }
+
+[features]
+default = []
+schema = ["dep:schemars"]
+
+[profile.release]
+opt-level = "s"
+lto = true
