@@ -1,6 +1,8 @@
-[build]
-# Only build for wasm in this project
-#default-target = "wasm32-unknown-unknown"
-
 [target.wasm32-unknown-unknown]
-rustflags = ["--cfg", 'getrandom_backend="wasm_js"']
+rustflags = ["-Clink-args=-z stack-size=10485760"]
+
+[alias]
+wasm = "build --lib --profile wasm-release --target wasm32-unknown-unknown"
+check-wasm = "check --lib --target wasm32-unknown-unknown"
+lint = "clippy --locked --workspace --all-targets --all-features"
+lint-wasm = "clippy --locked --lib --target wasm32-unknown-unknown --all-features"

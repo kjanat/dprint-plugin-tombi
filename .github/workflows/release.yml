@@ -2,78 +2,50 @@ name: Release
 
 on:
   push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
 
 jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
   release:
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Validate version matches tag
-        run: |
-          CARGO_VERSION=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
-          TAG_VERSION="${GITHUB_REF_NAME}"
-          if [ "$CARGO_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Version mismatch: Cargo.toml has $CARGO_VERSION but tag is $TAG_VERSION"
-            exit 1
-          fi
-          echo "Version validated: $TAG_VERSION"
-
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          targets: wasm32-unknown-unknown
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Run tests
-        run: cargo test --all-features
-
-      - name: Generate schema
-        run: cargo run --bin generate-schema --features schema
-
-      - name: Build WASM
-        run: cargo build --release --target wasm32-unknown-unknown
-
-      - name: Rename plugin for dprint proxy
-        run: cp target/wasm32-unknown-unknown/release/dprint_plugin_tombi.wasm plugin.wasm
-
-      - name: Upload plugin artifact
-        uses: actions/upload-artifact@v6
+          persist-credentials: false
+      - name: Validate bare semver and package version
+        run: |
+          python3 - <<'PY'
+          import os, re, tomllib
+          with open("Cargo.toml", "rb") as manifest:
+              version = tomllib.load(manifest)["package"]["version"]
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", tag) or tag != version:
+              raise SystemExit(f"Tag {tag!r} does not match package version {version!r}")
+          PY
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: plugin
-          path: |
-            plugin.wasm
-            schema.json
+      - name: Publish the tested artifact without replacing existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## Tombi formatter for dprint
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            plugin.wasm
-            schema.json
-          generate_release_notes: true
-          append_body: true
-          body: |
+          Uses the upstream Tombi Rust formatter in dprint's WASM sandbox.
+          The configuration key is `toml`, not `tombi`.
 
-            ## Install
-
-            [Install](https://dprint.dev/install/) and [setup](https://dprint.dev/setup/) dprint.
-
-            Then in your project's dprint configuration file:
-
-            1. Specify the plugin url in the `plugins` array (or run `dprint config add kjanat/tombi`).
-            2. Add a `tombi` configuration property if desired.
-
-               ```jsonc
-               {
-                 // ...etc...
-                 "tombi": {},
-                 "plugins": [
-                   "https://plugins.dprint.dev/kjanat/tombi-${{ github.ref_name }}.wasm"
-                 ]
-               }
-               ```
+          Download `plugin.wasm` and reference its local path in your dprint config.
+          For a public repository/release, use `dprint add --checksum kjanat/tombi`.
+          See the README for sandbox limitations and configuration.
+          EOF
+          gh release create "$GITHUB_REF_NAME" plugin.wasm schema.json \
+            --verify-tag --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md --generate-notes
