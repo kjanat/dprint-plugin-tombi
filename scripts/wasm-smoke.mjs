@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const plugin = resolve(process.argv[2] ?? "target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm");
+const plugin = resolve(process.argv[2] ?? "dist/plugin.wasm");
 const module = new WebAssembly.Module(readFileSync(plugin));
 const foreign = WebAssembly.Module.imports(module).filter((entry) => entry.module !== "dprint");
 assert.deepEqual(foreign, [], "The plugin must not import JavaScript, WASI, or other non-dprint APIs");

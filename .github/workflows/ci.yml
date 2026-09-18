@@ -34,12 +34,16 @@ jobs:
           cache-on-failure: true
       - name: Resolve lockfile for initial migration
         run: test -f Cargo.lock || cargo generate-lockfile
+      - name: Install pinned build tools
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Test the Wasm finalizer
+        run: npm run test:build
       - name: Generate schema
         run: cargo run --locked --bin generate-schema --features schema
       - name: Native tests
         run: cargo test --locked --all-features
       - name: Build the actual plugin
-        run: cargo wasm --locked
+        run: npm run build:wasm
       - name: Install pinned dprint CLI
         run: |
           npm install --prefix "$RUNNER_TEMP/dprint" --no-audit --no-fund dprint@0.57.4
@@ -55,8 +59,8 @@ jobs:
       - name: Check formatting and tracked generated files
         run: |
           cargo fmt --all -- --check
-          git ls-files --error-unmatch Cargo.lock schema.json
-          git diff --exit-code -- Cargo.lock schema.json
+          git ls-files --error-unmatch Cargo.lock schema.json package-lock.json
+          git diff --exit-code -- Cargo.lock schema.json package-lock.json
       - name: Collect migration diagnostics
         if: always()
         run: |
@@ -70,10 +74,12 @@ jobs:
           path: |
             Cargo.lock
             schema.json
+            package-lock.json
             formatting.patch
+            dist/plugin.wasm
           if-no-files-found: warn
       - name: Stage release artifacts
-        run: cp target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm plugin.wasm
+        run: cp dist/plugin.wasm plugin.wasm
       - uses: actions/upload-artifact@v6
         with:
           name: plugin

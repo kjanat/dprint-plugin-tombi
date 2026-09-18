@@ -6,6 +6,8 @@ use serde::{Serialize, Serializer};
 use serde_json::{Map, Value, json};
 use tombi_config::{TomlVersion, format::FormatRules};
 
+const TOML_VERSION_ALIASES: [(&str, &str); 2] = [("1.0.0", "v1.0.0"), ("1.1.0", "v1.1.0")];
+
 /// Validated Tombi options. Unset rules retain upstream defaults.
 #[derive(Clone, Debug, Default, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -51,7 +53,7 @@ fn serialize_rules<S: Serializer>(rules: &FormatRules, serializer: S) -> Result<
     properties.serialize(serializer)
 }
 
-pub(crate) fn resolve_config(
+pub fn resolve_config(
     mut config: ConfigKeyMap,
     global: &GlobalConfiguration,
 ) -> (Configuration, Vec<ConfigurationDiagnostic>) {
@@ -123,8 +125,11 @@ fn resolve_version(
     };
     let mut value = json!(value);
     // Preserve the unprefixed spellings accepted by the original scaffold.
-    if let Some(version @ ("1.0.0" | "1.1.0")) = value.as_str() {
-        value = json!(format!("v{version}"));
+    if let Some((_, canonical)) = TOML_VERSION_ALIASES
+        .iter()
+        .find(|(alias, _)| value.as_str() == Some(*alias))
+    {
+        value = json!(canonical);
     }
     serde_json::from_value(value).unwrap_or_else(|error| {
         diagnostics.push(ConfigurationDiagnostic {
@@ -150,8 +155,24 @@ pub fn configuration_schema() -> anyhow::Result<Value> {
         .into_iter()
         .map(|(key, value)| (camel_case(&key), value))
         .collect();
+    let version = properties
+        .get_mut("tomlVersion")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| anyhow::anyhow!("configuration schema has no TOML version"))?;
+    let reference = version
+        .remove("$ref")
+        .ok_or_else(|| anyhow::anyhow!("TOML version schema has no reference"))?;
+    version.insert(
+        "anyOf".into(),
+        json!([
+            {"$ref": reference},
+            {"type": "string", "enum": TOML_VERSION_ALIASES.map(|(alias, _)| alias)}
+        ]),
+    );
     // TOML version has a runtime default, so it is not a required config key.
-    schema.as_object_mut().ok_or_else(|| anyhow::anyhow!("schema is not an object"))?
+    schema
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("schema is not an object"))?
         .remove("required");
     schema["$id"] = json!(crate::SCHEMA_URL);
     schema["title"] = json!("dprint-plugin-tombi Configuration");
