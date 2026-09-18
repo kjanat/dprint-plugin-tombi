@@ -8,11 +8,11 @@ A [dprint][dprint] plugin for formatting TOML files using [Tombi][tombi].
 dprint config add kjanat/tombi
 ```
 
-Add to your `dprint.json`:
+Add to your `dprint.json(c)`:
 
 <!-- dprint-ignore-start -->
 
-```json
+```jsonc
 {
   "plugins": [
     // See https://github.com/kjanat/dprint-plugin-tombi/releases

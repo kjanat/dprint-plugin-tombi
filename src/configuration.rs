@@ -7,7 +7,7 @@ use tombi_config::{
 
 /// Configuration for the Tombi TOML formatter plugin.
 ///
-/// Maps dprint configuration keys to Tombi's FormatOptions.
+/// Maps dprint configuration keys to Tombi's `FormatOptions`.
 #[derive(Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(
@@ -109,22 +109,27 @@ pub struct Configuration {
     pub toml_version: TomlVersionOption,
 }
 
+#[cfg(feature = "schema")]
 fn default_line_width() -> u8 {
     80
 }
 
+#[cfg(feature = "schema")]
 fn default_indent_width() -> u8 {
     2
 }
 
+#[cfg(feature = "schema")]
 fn default_key_value_space() -> u8 {
     1
 }
 
+#[cfg(feature = "schema")]
 fn default_trailing_comment_space() -> u8 {
     2
 }
 
+#[cfg(feature = "schema")]
 fn default_one() -> u8 {
     1
 }
@@ -220,7 +225,8 @@ pub enum TomlVersionOption {
 }
 
 impl Configuration {
-    /// Convert to Tombi's FormatOptions
+    /// Convert to Tombi's `FormatOptions`
+    #[must_use]
     pub fn to_format_options(&self) -> tombi_config::FormatOptions {
         use tombi_config::format::FormatRules;
 
@@ -273,7 +279,8 @@ impl Configuration {
     }
 
     /// Get the TOML version
-    pub fn toml_version(&self) -> tombi_toml_version::TomlVersion {
+    #[must_use]
+    pub const fn toml_version(&self) -> tombi_toml_version::TomlVersion {
         match self.toml_version {
             TomlVersionOption::V1_1_0 => tombi_toml_version::TomlVersion::V1_1_0,
             TomlVersionOption::V1_0_0 => tombi_toml_version::TomlVersion::V1_0_0,

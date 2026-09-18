@@ -57,16 +57,16 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
         let line_ending_str: String = get_value(
             &mut config,
             "lineEnding",
-            match &global_config.new_line_kind {
-                Some(kind) => match kind {
+            global_config.new_line_kind.as_ref().map_or_else(
+                || "lf".to_string(),
+                |kind| match kind {
                     dprint_core::configuration::NewLineKind::LineFeed => "lf".to_string(),
                     dprint_core::configuration::NewLineKind::CarriageReturnLineFeed => {
                         "crlf".to_string()
                     }
                     _ => "lf".to_string(),
                 },
-                None => "lf".to_string(),
-            },
+            ),
             &mut diagnostics,
         );
         let line_ending = match line_ending_str.as_str() {
@@ -120,7 +120,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
             indent_width: get_value(
                 &mut config,
                 "indentWidth",
-                global_config.indent_width.unwrap_or(2) as u8,
+                global_config.indent_width.unwrap_or(2),
                 &mut diagnostics,
             ),
             line_ending,
@@ -222,7 +222,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
                     Ok(Some(formatted.into_bytes()))
                 }
             }
-            Err(e) => Err(anyhow::anyhow!("Formatting error: {}", e)),
+            Err(e) => Err(anyhow::anyhow!("Formatting error: {e}")),
         }
     }
 }

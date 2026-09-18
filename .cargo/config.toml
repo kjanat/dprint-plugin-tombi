@@ -1,2 +1,6 @@
+[build]
+# Only build for wasm in this project
+#default-target = "wasm32-unknown-unknown"
+
 [target.wasm32-unknown-unknown]
-rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+rustflags = ["--cfg", 'getrandom_backend="wasm_js"']

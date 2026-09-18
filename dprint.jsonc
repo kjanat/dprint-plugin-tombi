@@ -11,10 +11,7 @@
   },
   "malva": {},
   "markup": {},
-  "yaml": {
-    "bracketSpacing": true,
-    "flowMap.preferSingleLine": true,
-  },
+  "yaml": { "flowMap.preferSingleLine": true },
   // Exec plugin configuration to run rustfmt
   "exec": {
     "cwd": "${configDir}",
