@@ -34,16 +34,12 @@ jobs:
           cache-on-failure: true
       - name: Resolve lockfile for initial migration
         run: test -f Cargo.lock || cargo generate-lockfile
-      - name: Install pinned build tools
-        run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Test the Wasm finalizer
-        run: npm run test:build
       - name: Generate schema
         run: cargo run --locked --bin generate-schema --features schema
       - name: Native tests
         run: cargo test --locked --all-features
       - name: Build the actual plugin
-        run: npm run build:wasm
+        run: cargo wasm --locked
       - name: Install pinned dprint CLI
         if: ${{ !cancelled() }}
         run: |
@@ -60,29 +56,19 @@ jobs:
       - name: Check formatting and tracked generated files
         run: |
           cargo fmt --all -- --check
-          git ls-files --error-unmatch Cargo.lock schema.json package-lock.json
-          git diff --exit-code -- Cargo.lock schema.json package-lock.json
+          git ls-files --error-unmatch Cargo.lock schema.json
+          git diff --exit-code -- Cargo.lock schema.json
       - name: Collect migration diagnostics
         if: always()
         run: |
           cargo fmt --all
           git diff --binary > formatting.patch
           mkdir -p generated/src/bin generated/tests
-          cp Cargo.lock schema.json package-lock.json generated/
+          cp Cargo.lock schema.json generated/
           cp src/*.rs generated/src/
           cp src/bin/*.rs generated/src/bin/
           cp tests/*.rs generated/tests/
-          mkdir -p wasm-debug/node_modules
-          cp target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm wasm-debug/raw.wasm
-          cp -r node_modules/binaryen wasm-debug/node_modules/
-          cp -r "$RUNNER_TEMP/dprint" wasm-debug/dprint
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const m = new WebAssembly.Module(fs.readFileSync("wasm-debug/raw.wasm"));
-            const data = { exports: WebAssembly.Module.exports(m), imports: WebAssembly.Module.imports(m) };
-            fs.writeFileSync("wasm-debug/abi.json", JSON.stringify(data, null, 2));
-            console.log(JSON.stringify(data));
-          '
+          cp target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm plugin.wasm
       - name: Upload generated migration files
         if: always()
         uses: actions/upload-artifact@v6
@@ -98,19 +84,9 @@ jobs:
           path: |
             Cargo.lock
             schema.json
-            package-lock.json
             formatting.patch
-            dist/plugin.wasm
+            plugin.wasm
           if-no-files-found: warn
-      - name: Upload Wasm debugging bundle
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: wasm-debug
-          path: wasm-debug/
-          if-no-files-found: warn
-      - name: Stage release artifacts
-        run: cp dist/plugin.wasm plugin.wasm
       - uses: actions/upload-artifact@v6
         with:
           name: plugin
@@ -118,8 +94,8 @@ jobs:
             plugin.wasm
             schema.json
 
-  # One-time migration helper. It only creates content-addressed blobs, never
-  # commits or refs. Build code executes in the separate read-only verify job.
+  # Temporary: create content-addressed blobs without changing commits or refs.
+  # This job runs no repository code; verify retains read-only permissions.
   stage-generated-blobs:
     needs: verify
     if: >-
@@ -143,9 +119,8 @@ jobs:
           python3 - <<'PY'
           import base64, hashlib, json, os, pathlib, urllib.request
           root = pathlib.Path('generated').resolve()
-          paths = ['Cargo.lock', 'schema.json', 'package-lock.json',
-                   'src/lib.rs', 'src/configuration.rs', 'src/handler.rs',
-                   'src/bin/generate_schema.rs', 'tests/format.rs']
+          paths = ['Cargo.lock', 'schema.json', 'src/lib.rs', 'src/configuration.rs',
+                   'src/handler.rs', 'src/bin/generate_schema.rs', 'tests/format.rs']
           entries = []
           for name in paths:
               path = root / name
@@ -159,8 +134,7 @@ jobs:
                   f'https://api.github.com/repos/{os.environ["GITHUB_REPOSITORY"]}/git/blobs',
                   data=json.dumps({'encoding': 'base64', 'content': base64.b64encode(data).decode()}).encode(),
                   headers={'Authorization': f'Bearer {os.environ["GH_TOKEN"]}',
-                           'Accept': 'application/vnd.github+json',
-                           'Content-Type': 'application/json'},
+                           'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'},
                   method='POST')
               with urllib.request.urlopen(request, timeout=30) as response:
                   sha = json.load(response)['sha']

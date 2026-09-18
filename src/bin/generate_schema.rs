@@ -8,6 +8,9 @@ fn main() -> anyhow::Result<()> {
     // Upstream enables serde_json/preserve_order. Sort explicitly, including
     // nested definitions, so dependency feature unification cannot cause drift.
     schema.sort_all_objects();
-    fs::write(path, format!("{}\n", serde_json::to_string_pretty(&schema)?))?;
+    fs::write(
+        path,
+        format!("{}\n", serde_json::to_string_pretty(&schema)?),
+    )?;
     Ok(())
 }

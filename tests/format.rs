@@ -8,7 +8,10 @@ use dprint_core::plugins::{
 use dprint_plugin_tombi::{Configuration, SCHEMA_URL, TombiPluginHandler, UPDATE_URL};
 use serde_json::{Value, json};
 
-fn resolve(value: Value, global: &GlobalConfiguration) -> PluginResolveConfigurationResult<Configuration> {
+fn resolve(
+    value: Value,
+    global: &GlobalConfiguration,
+) -> PluginResolveConfigurationResult<Configuration> {
     let map: ConfigKeyMap = serde_json::from_value(value).unwrap();
     TombiPluginHandler.resolve_config(map, global)
 }
@@ -31,7 +34,10 @@ fn format(bytes: &[u8], config: &Configuration) -> FormatResult {
 fn fixture_and_second_pass_are_stable() {
     let config = Configuration::default();
     let expected = include_bytes!("fixtures/expected.toml");
-    assert_eq!(format(include_bytes!("fixtures/source.toml"), &config).unwrap(), Some(expected.to_vec()));
+    assert_eq!(
+        format(include_bytes!("fixtures/source.toml"), &config).unwrap(),
+        Some(expected.to_vec())
+    );
     assert!(format(expected, &config).unwrap().is_none());
 }
 
@@ -85,7 +91,10 @@ fn globals_are_inherited_and_local_options_win() {
     assert_eq!(value["indentStyle"], "tab");
     assert_eq!(value["lineEnding"], "crlf");
 
-    let overridden = resolve(json!({"lineWidth": 80, "indentStyle": "space", "lineEnding": "lf"}), &global);
+    let overridden = resolve(
+        json!({"lineWidth": 80, "indentStyle": "space", "lineEnding": "lf"}),
+        &global,
+    );
     assert!(overridden.diagnostics.is_empty());
     let value = serde_json::to_value(&overridden.config).unwrap();
     assert_eq!(value["lineWidth"], 80);
@@ -95,14 +104,27 @@ fn globals_are_inherited_and_local_options_win() {
 
 #[test]
 fn oversized_global_width_is_diagnosed_not_truncated() {
-    let global = GlobalConfiguration { line_width: Some(300), ..GlobalConfiguration::default() };
-    assert_eq!(resolve(json!({}), &global).diagnostics[0].property_name, "lineWidth");
-    assert!(resolve(json!({"lineWidth": 80}), &global).diagnostics.is_empty());
+    let global = GlobalConfiguration {
+        line_width: Some(300),
+        ..GlobalConfiguration::default()
+    };
+    assert_eq!(
+        resolve(json!({}), &global).diagnostics[0].property_name,
+        "lineWidth"
+    );
+    assert!(
+        resolve(json!({"lineWidth": 80}), &global)
+            .diagnostics
+            .is_empty()
+    );
 }
 
 #[test]
 fn explicit_null_restores_upstream_default() {
-    let global = GlobalConfiguration { line_width: Some(80), ..GlobalConfiguration::default() };
+    let global = GlobalConfiguration {
+        line_width: Some(80),
+        ..GlobalConfiguration::default()
+    };
     let resolved = resolve(json!({"lineWidth": null}), &global);
     assert!(resolved.diagnostics.is_empty());
     assert!(resolved.config.rules.line_width.is_none());
@@ -111,9 +133,15 @@ fn explicit_null_restores_upstream_default() {
 #[test]
 fn old_toml_version_aliases_remain_supported() {
     for version in ["1.0.0", "1.1.0"] {
-        let resolved = resolve(json!({"tomlVersion": version}), &GlobalConfiguration::default());
+        let resolved = resolve(
+            json!({"tomlVersion": version}),
+            &GlobalConfiguration::default(),
+        );
         assert!(resolved.diagnostics.is_empty());
-        assert_eq!(serde_json::to_value(resolved.config.toml_version).unwrap(), format!("v{version}"));
+        assert_eq!(
+            serde_json::to_value(resolved.config.toml_version).unwrap(),
+            format!("v{version}")
+        );
     }
 }
 
@@ -121,15 +149,24 @@ fn old_toml_version_aliases_remain_supported() {
 fn upstream_default_rules_are_preserved() {
     let resolved = resolve(json!({}), &GlobalConfiguration::default());
     assert!(resolved.diagnostics.is_empty());
-    assert_eq!(resolved.config.rules, tombi_config::format::FormatRules::default());
+    assert_eq!(
+        resolved.config.rules,
+        tombi_config::format::FormatRules::default()
+    );
 }
 
 #[test]
 fn explicit_crlf_and_auto_newlines_work() {
     for ending in ["crlf", "auto"] {
-        let resolved = resolve(json!({"lineEnding": ending}), &GlobalConfiguration::default());
+        let resolved = resolve(
+            json!({"lineEnding": ending}),
+            &GlobalConfiguration::default(),
+        );
         assert!(resolved.diagnostics.is_empty());
-        assert_eq!(format(b"a=1\r\n", &resolved.config).unwrap(), Some(b"a = 1\r\n".to_vec()));
+        assert_eq!(
+            format(b"a=1\r\n", &resolved.config).unwrap(),
+            Some(b"a = 1\r\n".to_vec())
+        );
         assert!(format(b"a = 1\r\n", &resolved.config).unwrap().is_none());
     }
 }
@@ -141,7 +178,13 @@ fn metadata_matches_release_contract() {
     assert_eq!(info.help_url, env!("CARGO_PKG_REPOSITORY"));
     assert_eq!(info.config_schema_url, SCHEMA_URL);
     assert_eq!(info.update_url.as_deref(), Some(UPDATE_URL));
-    assert_eq!(SCHEMA_URL, format!("https://plugins.dprint.dev/kjanat/tombi/{}/schema.json", env!("CARGO_PKG_VERSION")));
+    assert_eq!(
+        SCHEMA_URL,
+        format!(
+            "https://plugins.dprint.dev/kjanat/tombi/{}/schema.json",
+            env!("CARGO_PKG_VERSION")
+        )
+    );
     let resolved = resolve(json!({}), &GlobalConfiguration::default());
     assert_eq!(resolved.file_matching.file_extensions, ["toml"]);
 }

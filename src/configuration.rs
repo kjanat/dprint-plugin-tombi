@@ -1,6 +1,5 @@
 use dprint_core::configuration::{
-    ConfigKeyMap, ConfigurationDiagnostic, GlobalConfiguration,
-    get_unknown_property_diagnostics,
+    ConfigKeyMap, ConfigurationDiagnostic, GlobalConfiguration, get_unknown_property_diagnostics,
 };
 use serde::{Serialize, Serializer};
 use serde_json::{Map, Value, json};
@@ -44,7 +43,9 @@ fn serialize_rules<S: Serializer>(rules: &FormatRules, serializer: S) -> Result<
     use serde::ser::Error;
     let value = serde_json::to_value(rules).map_err(S::Error::custom)?;
     let Value::Object(properties) = value else {
-        return Err(S::Error::custom("Tombi format rules must serialize as an object"));
+        return Err(S::Error::custom(
+            "Tombi format rules must serialize as an object",
+        ));
     };
     let properties: Map<String, Value> = properties
         .into_iter()
@@ -108,7 +109,10 @@ fn inherited_rules(global: &GlobalConfiguration) -> Map<String, Value> {
         rules.insert("indent-width".into(), json!(width));
     }
     if let Some(tabs) = global.use_tabs {
-        rules.insert("indent-style".into(), json!(if tabs { "tab" } else { "space" }));
+        rules.insert(
+            "indent-style".into(),
+            json!(if tabs { "tab" } else { "space" }),
+        );
     }
     if let Some(ending) = global.new_line_kind {
         rules.insert("line-ending".into(), json!(ending));

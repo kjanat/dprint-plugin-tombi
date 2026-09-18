@@ -5,10 +5,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const plugin = resolve(process.argv[2] ?? "dist/plugin.wasm");
+const plugin = resolve(process.argv[2] ?? "target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm");
 const module = new WebAssembly.Module(readFileSync(plugin));
 const foreign = WebAssembly.Module.imports(module).filter((entry) => entry.module !== "dprint");
 assert.deepEqual(foreign, [], "The plugin must not import JavaScript, WASI, or other non-dprint APIs");
+assert.ok(WebAssembly.Module.exports(module).some(({ name }) => name === "dprint_plugin_version_4"));
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dir = mkdtempSync(join(tmpdir(), "dprint-tombi-"));
 const configPath = join(dir, "dprint.json");
@@ -44,6 +45,9 @@ try {
   writeFileSync(join(dir, "extra.toml-extra"), 'name="demo"\n');
   writeFileSync(join(dir, "override.toml"), "name='demo'\n");
   writeFileSync(join(dir, "excluded.toml"), "a=1\n");
+  const disabled = "#:tombi format.disabled = true\n\na=1\n";
+  writeFileSync(join(dir, "disabled.toml"), disabled);
+  writeFileSync(join(dir, "dates.toml"), "offset=1979-05-27T07:32:00Z\nlocal=1979-05-27T07:32:00\ndate=1979-05-27\ntime=07:32:00\n");
   run(["check"], false);
   run(["fmt"]);
   assert.equal(contents("fixture.toml"), readFileSync(join(root, "tests/fixtures/expected.toml"), "utf8"));
@@ -51,6 +55,8 @@ try {
   assert.equal(contents("extra.toml-extra"), "name = 'demo'\n");
   assert.equal(contents("override.toml"), 'name = "demo"\n');
   assert.equal(contents("excluded.toml"), "a=1\n");
+  assert.equal(contents("disabled.toml"), disabled);
+  assert.equal(contents("dates.toml"), "offset = 1979-05-27T07:32:00Z\nlocal = 1979-05-27T07:32:00\ndate = 1979-05-27\ntime = 07:32:00\n");
   run(["check"]);
   run(["fmt"]);
   run(["check"]);
@@ -68,7 +74,7 @@ try {
   writeConfig();
   const unknown = run(["check"], false);
   assert.match(unknown.stdout + unknown.stderr, /misspelledOption/);
-  console.log("WASM imports, formatting, idempotence, associations, overrides, and diagnostics passed.");
+  console.log("WASM imports, formatting, dates, directives, idempotence, associations, overrides, and diagnostics passed.");
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

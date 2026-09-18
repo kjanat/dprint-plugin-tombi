@@ -1,0 +1,427 @@
+{
+  "$defs": {
+    "ArrayBracketSpaceWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ArrayCommaSpaceWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "BlankLines": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "BlankLinesLimit": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "CommentStyle": {
+      "description": "The style used to format comments.",
+      "oneOf": [
+        {
+          "const": "normalize",
+          "description": "Normalize comment text according to Tombi's formatting rules.",
+          "type": "string"
+        },
+        {
+          "const": "preserve",
+          "description": "Preserve the original comment text while formatting its placement normally.",
+          "type": "string"
+        }
+      ]
+    },
+    "DateTimeDelimiter": {
+      "description": "DateTime delimiter",
+      "oneOf": [
+        {
+          "const": "T",
+          "description": "Example: `2021-01-01T00:00:00`",
+          "type": "string"
+        },
+        {
+          "const": "space",
+          "description": "Example: `2021-01-01 00:00:00`",
+          "type": "string"
+        },
+        {
+          "const": "preserve",
+          "description": "Preserve the source delimiter",
+          "type": "string"
+        }
+      ]
+    },
+    "IndentStyle": {
+      "enum": [
+        "space",
+        "tab"
+      ],
+      "type": "string"
+    },
+    "IndentWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "InlineTableBraceSpaceWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "InlineTableCommaSpaceWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "KeyValueEqualsSignSpaceWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "LineEnding": {
+      "oneOf": [
+        {
+          "enum": [
+            "lf",
+            "crlf"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "auto",
+          "description": "Automatically detects the line ending style from the source file.",
+          "type": "string"
+        }
+      ]
+    },
+    "LineWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "StringQuoteStyle": {
+      "description": "The preferred quote character for strings.",
+      "oneOf": [
+        {
+          "const": "double",
+          "description": "Prefer the double quote",
+          "type": "string"
+        },
+        {
+          "const": "single",
+          "description": "Prefer the single quote",
+          "type": "string"
+        },
+        {
+          "const": "preserve",
+          "description": "Preserve the source quote",
+          "type": "string"
+        }
+      ]
+    },
+    "TomlVersion": {
+      "oneOf": [
+        {
+          "enum": [
+            "v1.0.0",
+            "v1.1.0"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "v1.1.0-preview",
+          "deprecated": true,
+          "type": "string"
+        }
+      ],
+      "title": "TOML version"
+    },
+    "TrailingCommentSpaceWidth": {
+      "format": "uint8",
+      "maximum": 255,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "$id": "https://plugins.dprint.dev/kjanat/tombi/0.1.0/schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Validated Tombi options. Unset rules retain upstream defaults.",
+  "properties": {
+    "arrayBracketSpaceWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArrayBracketSpaceWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 0,
+      "description": "```toml\nkey = [ 1, 2, 3 ]\n#      ^       ^  <- this\n```",
+      "title": "The number of spaces inside the brackets of a single line array."
+    },
+    "arrayCommaSpaceWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArrayCommaSpaceWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "description": "```toml\nkey = [ 1, 2, 3 ]\n#         ^  ^    <- this\n```",
+      "title": "The number of spaces after the comma in a single line array."
+    },
+    "commentStyle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CommentStyle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "normalize",
+      "description": "- `normalize`: Normalize comment text according to Tombi's formatting rules.\n- `preserve`: Preserve the original comment text while formatting its placement normally.",
+      "title": "The style used to format comments"
+    },
+    "dateTimeDelimiter": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DateTimeDelimiter"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "T",
+      "description": "In accordance with [RFC 3339](https://datatracker.ietf.org/doc/html/rfc3339), you can use `T` or space character between date and time.\n\n- `T`: Use `T` between date and time like `2001-01-01T00:00:00`\n- `space`: Use space between date and time like `2001-01-01 00:00:00`\n- `preserve`: Preserve the original delimiter.",
+      "title": "The delimiter between date and time"
+    },
+    "groupBlankLinesLimit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlankLinesLimit"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "description": "Consecutive groups remain separate for sorting purposes,\nand existing blank lines between them are preserved up to this limit.\n\n```toml\n# BEFORE\nkey1 = \"value1\"\nkey2 = \"value2\"\n\nkey3 = \"value3\"\n\n\nkey4 = \"value4\"\n\n# AFTER (`group-blank-lines-limit = 1`)\nkey1 = \"value1\"\nkey2 = \"value2\"\n\nkey3 = \"value3\"\n\nkey4 = \"value4\"\n```",
+      "title": "The blank lines limit between groups."
+    },
+    "indentStyle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IndentStyle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "space",
+      "description": "Whether to use spaces or tabs for indentation.\n\n- `space`: Use spaces for indentation.\n- `tab`: Use tabs for indentation.",
+      "title": "The style of indentation"
+    },
+    "indentSubTables": {
+      "default": false,
+      "description": "If `true`, the sub-table will be indented.\n\n```toml\n[table]\n    [table.sub-table]\n    key = \"value\"\n# ^^  <- this\n```",
+      "title": "Whether to indent the sub-tables",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "indentTableKeyValuePairs": {
+      "default": false,
+      "description": "If `true`, the table key-value pairs will be indented.\n\n```toml\n[table]\n    key = \"value\"\n# ^^  <- this\n```",
+      "title": "Whether to indent the table key-value pairs",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "indentWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IndentWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 2,
+      "description": "⚠️ **WARNING** ⚠️\\\nThis option is only used when the indentation style is `space`.",
+      "title": "The number of spaces per indentation level"
+    },
+    "inlineTableBraceSpaceWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InlineTableBraceSpaceWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "description": "```toml\nkey = { a = 1, b = 2 }\n#      ^            ^  <- this\n```",
+      "title": "The number of spaces inside the brackets of a single line inline table."
+    },
+    "inlineTableCommaSpaceWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InlineTableCommaSpaceWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "description": "```toml\nkey = { a = 1, b = 2 }\n#             ^  <- this\n```",
+      "title": "The number of spaces after the comma in a single line inline table."
+    },
+    "keyQuoteStyle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StringQuoteStyle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Choose which quote style the formatter prefers for quoted keys.\nIf unspecified, `string-quote-style` is used.",
+      "title": "The preferred quote character for keys"
+    },
+    "keyValueEqualsSignAlignment": {
+      "default": false,
+      "description": "If `true`, the equals sign in the key-value pairs will be aligned.\n\n⚠️ **WARNING** ⚠️\\\nThis feature does **not** apply to key-value pairs inside single line inline tables.\n\n```toml\n# BEFORE\nkey = \"value1\"\nkey2 = \"value2\"\nkey3.key4 = \"value3\"\n\n# AFTER\nkey       = \"value1\"\nkey2      = \"value2\"\nkey3.key4 = \"value3\"\n```",
+      "title": "Whether to align the equals sign in the key-value pairs.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "keyValueEqualsSignSpaceWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/KeyValueEqualsSignSpaceWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "description": "```toml\nkey = \"value\"\n#  ^ ^  <- this\n```",
+      "title": "The number of spaces around the equals sign in a key-value pair."
+    },
+    "lineEnding": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LineEnding"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "auto",
+      "description": "In TOML, the line ending must be either `LF` or `CRLF`.\n\n- `lf`: Line Feed only (`\\n`), common on Linux and macOS as well as inside git repos.\n- `crlf`: Carriage Return Line Feed (`\\r\\n`), common on Windows.",
+      "title": "The type of line ending"
+    },
+    "lineWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LineWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The formatter will try to keep lines within this width when specified.\nIf omitted, there is no line-width limit.",
+      "title": "The maximum line width"
+    },
+    "stringQuoteStyle": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StringQuoteStyle"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "double",
+      "description": "Choose which quote style the formatter prefers for basic strings.",
+      "title": "The preferred quote character for strings"
+    },
+    "tableBlankLines": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlankLines"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 1,
+      "description": "This applies when the formatter inserts spacing between table or array-of-table blocks.\n\n```toml\n# BEFORE\n[aaa]\nkey1 = \"value1\"\n[bbb]\nkey2 = \"value2\"\n\n# AFTER (`table-blank-lines = 2`)\n[aaa]\nkey1 = \"value1\"\n\n\n[bbb]\nkey2 = \"value2\"\n```\n\nTight parent/child table adjacency is controlled separately, so this does not apply\nwhen a child table follows a parent table that has no key-value pairs.\n\n```toml\n# BEFORE\n[aaa]\n\n[aaa.bbb]\n\n# AFTER\n[aaa]\n[aaa.bbb]\n```",
+      "title": "The number of blank lines between tables."
+    },
+    "tomlVersion": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TomlVersion"
+        },
+        {
+          "enum": [
+            "1.0.0",
+            "1.1.0"
+          ],
+          "type": "string"
+        }
+      ],
+      "default": "v1.0.0",
+      "description": "The TOML language version. Document directives may override it."
+    },
+    "trailingCommentAlignment": {
+      "default": false,
+      "description": "If `true`, the trailing comments in value/key-value pairs will be aligned.\n\n**📝 NOTE 📝**\\\nThe trailing comments of table header are not targeted by alignment.\n\n```toml\n# BEFORE\nkey = \"value1\"  # comment 1\nkey2 = \"value2\"  # comment 2\nkey3.key4 = \"value3\"  # comment 3\n\n# AFTER\nkey = \"value1\"        # comment 1\nkey2 = \"value2\"       # comment 2\nkey3.key4 = \"value3\"  # comment 3\n```",
+      "title": "Whether to align the trailing comments in the key-value pairs.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "trailingCommentSpaceWidth": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrailingCommentSpaceWidth"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 2,
+      "description": "```toml\nkey = \"value\"  # trailing comment\n#            ^^  <- this\n```",
+      "title": "The number of spaces before the trailing comment."
+    }
+  },
+  "title": "dprint-plugin-tombi Configuration",
+  "type": "object",
+  "x-tombi-table-keys-order": "ascending"
+}
