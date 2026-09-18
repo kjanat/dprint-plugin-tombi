@@ -1,11 +1,15 @@
-#:tombi schema.strict = true
-#:tombi toml-version = "v1.1.0-preview"
+#:schema tombi://www.schemastore.org/tombi.json
+#:tombi toml-version = "v1.1.0"
+# Full structure example: https://tombi-toml.github.io/tombi/docs/configuration#full-structure
+#
+# curl -fsSLo "${OUT:-tombi.toml}" https://raw.githubusercontent.com/kjanat/kjanat/HEAD/configs/tombi.toml
 
-toml-version = "v1.1.0-preview"
+toml-version = "v1.0.0"
 
 [files]
-include = ["**/*.toml"]
-# exclude = []
+include              = ["**/*.toml", "**/.*.toml"]
+exclude              = ["**/fixtures", "**/.cache/**/*.toml"]
+respect-ignore-files = true
 
 [format]
 [format.rules]
@@ -14,14 +18,14 @@ array-comma-space-width           = 1
 date-time-delimiter               = "T"
 indent-style                      = "space"
 indent-sub-tables                 = false
-# indent-table-key-value-pairs = false
+indent-table-key-value-pairs      = false
 indent-width                      = 2
 inline-table-brace-space-width    = 1
 inline-table-comma-space-width    = 1
 key-value-equals-sign-alignment   = true
 key-value-equals-sign-space-width = 1
 line-ending                       = "lf"
-line-width                        = 80
+line-width                        = 140
 string-quote-style                = "double"
 trailing-comment-alignment        = true
 trailing-comment-space-width      = 2
@@ -33,20 +37,21 @@ key-empty                = "warn"
 tables-out-of-order      = "error"
 
 [lsp]
-code-action.enabled          = true
-completion.enabled           = true
-# diagnostics.enabled = true
-document-link.enabled        = true
-formatting.enabled           = true
-goto-declaration.enabled     = true
-goto-definition.enabled      = true
-goto-type-definition.enabled = true
-hover.enabled                = true
-workspace-diagnostic.enabled = true
+code-action          = { enabled = true }
+completion           = { enabled = true }
+diagnostic           = { enabled = true }
+document-link        = { enabled = true }
+formatting           = { enabled = true }
+goto-declaration     = { enabled = true }
+goto-definition      = { enabled = true }
+goto-type-definition = { enabled = true }
+hover                = { enabled = true }
+references           = { enabled = true }
+workspace-diagnostic = { enabled = true }
 
 [schema]
 enabled = true
-strict  = false
+strict  = true
 catalog = {
   paths = [
     "tombi://www.schemastore.org/api/json/catalog.json",
@@ -54,50 +59,58 @@ catalog = {
   ],
 }
 
-# # Root Schema
-# [[schemas]]
-# root = "."
-# # toml-version = "1.0.0"
-# path = "cargo.json"
-# include = ["Cargo.toml"]
+# Rust / Cargo
+[[schemas]]
+toml-version = "v1.0.0"
+path         = "https://www.schemastore.org/cargo.json"
+include      = ["Cargo.toml", "**/Cargo.toml"]
+lint.rules   = {
+  deprecated = "off",
+}
 
-# # Sub Schema
-# [[schemas]]
-# root = "tool.taskipy"
-# path = "schemas/partial-taskipy.schema.json"
-# include = ["pyproject.toml"]
+[[schemas]]  # https://doc.rust-lang.org/cargo/reference/config.html#configuration-format
+path    = "https://www.schemastore.org/cargo-config.json"
+include = ["**/.cargo/config.toml", "**/.config/nightly.toml"]
 
-# # Override config
-# [[overrides]]
-# [overrides.files]
-# include = ["specific/**/*.toml"]
-# exclude = ["specific/**/ignored.toml"]
+# Python
+[[schemas]]  # https://docs.basedpyright.com/dev/configuration/config-files/#pyright-configuration
+root    = "tool.pyright"
+path    = "https://raw.githubusercontent.com/DetachHead/basedpyright/HEAD/packages/vscode-pyright/schemas/pyrightconfig.schema.json"
+include = ["pyproject.toml"]
 
-# [overrides.format]
-# enabled = true
+# Runner
+[[schemas]]
+path    = "https://kjanat.github.io/runner/schemas/runner.toml.schema.json"
+include = ["runner.toml", ".runner.toml"]
 
-# [overrides.format.rules]
-# array-bracket-space-width = 1
-# array-comma-space-width = 1
-# date-time-delimiter = "space"
-# indent-style = "tab"
-# indent-sub-tables = true
-# indent-table-key-value-pairs = true
-# indent-width = 4
-# inline-table-brace-space-width = 0
-# inline-table-comma-space-width = 1
-# key-value-equals-sign-alignment = true
-# key-value-equals-sign-space-width = 1
-# line-ending = "crlf"
-# line-width = 120
-# string-quote-style = "single"
-# trailing-comment-alignment = true
-# trailing-comment-space-width = 1
+# Zed Editor
+[[schemas]]
+path    = "https://raw.githubusercontent.com/kjanat/zed-editor/feature/extension-toml-schema/crates/extension_api/schemas/language-config.schema.json"
+include = ["**/languages/*/config.toml"]
 
-# [overrides.lint]
-# enabled = true
+[[schemas]]
+path    = "https://raw.githubusercontent.com/kjanat/zed-editor/feature/extension-toml-schema/crates/extension_api/schemas/extension.schema.json"
+include = ["**/zed-*/extension.toml", "**/*-zed/extension.toml"]
 
-# [overrides.lint.rules]
-# dotted-keys-out-of-order = "error"
-# key-empty = "error"
-# tables-out-of-order = "error"
+# AI Stuff
+[[schemas]]  # Documentation: https://developers.openai.com/codex/
+path    = "https://gist.githubusercontent.com/kjanat/5153798b521fbbc686932463327669c8/raw/codex-config.schema.json"
+include = [".codex/config.toml", "**/.codex/config.toml"]
+
+# Helix
+[[schemas]]
+path    = "https://gist.githubusercontent.com/kjanat/8b6206f3780eedbaa422fbc9b2ec5ceb/raw/6416240a9d34ebfa96db922fb7aebd9628262bea/helix-languages.schema.json"
+include = ["**/helix/languages.toml", "**/.helix/languages.toml"]
+
+[[schemas]]
+path    = "https://gist.githubusercontent.com/kjanat/8b6206f3780eedbaa422fbc9b2ec5ceb/raw/6416240a9d34ebfa96db922fb7aebd9628262bea/helix-config.schema.json"
+include = ["**/helix/config.toml", "**/.helix/config.toml"]
+
+[[schemas]]
+path    = "https://gist.githubusercontent.com/kjanat/8b6206f3780eedbaa422fbc9b2ec5ceb/raw/6416240a9d34ebfa96db922fb7aebd9628262bea/helix-theme.schema.json"
+include = ["**/helix/themes/*.toml", "**/runtime/themes/*.toml"]
+
+# Mise
+[[schemas]]
+path    = "https://mise.jdx.dev/schema/mise.json"
+include = ["mise.toml", ".mise.toml"]

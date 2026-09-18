@@ -2,15 +2,17 @@
 
 ## Architecture
 
-This is a Rust → `wasm32-unknown-unknown` dprint plugin wrapping the same formatter
-engine as `tombi-wasm-lib`. The browser WASM ABI is not compatible with dprint.
-Do not add a JS runtime, process plugin, copied formatter or post-link import
-stubs. All Tombi dependencies are pinned to the same immutable commit.
+This is a Rust → `wasm32-unknown-unknown` dprint plugin wrapping the same
+formatter engine as `tombi-wasm-lib`. The browser WASM ABI is not compatible
+with dprint. Do not add a JS runtime, process plugin, copied formatter or
+post-link import stubs. All Tombi dependencies are pinned to the same immutable
+commit.
 
 The dependency is based directly on upstream v1.5.5 with a small portability
-delta in the existing Tombi fork. See UPSTREAM.md for provenance and hash-seeding
-tradeoffs. Keep the formatter/parser algorithms unchanged. Prefer upstream
-non-browser feature support when available rather than growing the fork.
+delta in the existing Tombi fork. See UPSTREAM.md for provenance and
+hash-seeding tradeoffs. Keep the formatter/parser algorithms unchanged. Prefer
+upstream non-browser feature support when available rather than growing the
+fork.
 
 Keep the existing configuration key `toml`. `src/configuration.rs` discovers and
 validates upstream `FormatRules` through serde, exposing keys in camelCase.
@@ -56,12 +58,12 @@ Use bare semver release tags and the artifact name `plugin.wasm`. Publish the
 exact artifact that passed CI, not a separately rebuilt binary. Never replace
 existing release artifacts.
 
-The public dprint proxy requires a public repository and a published release.
-Do not describe an unreleased/private build as publicly installable.
+The public dprint proxy requires a public repository and a published release. Do
+not describe an unreleased/private build as publicly installable.
 
 ## Style
 
-Rust edition 2024. English comments. Use dprint's `FormatError` at the plugin API
-boundary and `anyhow` for developer tooling. Reject invalid UTF-8 and unsupported
-ranges. Preserve no-change/idempotence and cancellation checks. Keep upstream
-licensing notices.
+Rust edition 2024. English comments. Use dprint's `FormatError` at the plugin
+API boundary and `anyhow` for developer tooling. Reject invalid UTF-8 and
+unsupported ranges. Preserve no-change/idempotence and cancellation checks. Keep
+upstream licensing notices.

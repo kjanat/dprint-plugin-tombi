@@ -1,10 +1,10 @@
 #:schema https://www.schemastore.org/cargo-config.json
 
+[alias]
+check-wasm = "check --lib --target wasm32-unknown-unknown"
+lint       = "clippy --locked --workspace --all-targets --all-features"
+lint-wasm  = "clippy --locked --lib --target wasm32-unknown-unknown --all-features"
+wasm       = "build --lib --profile wasm-release --target wasm32-unknown-unknown"
+
 [target.wasm32-unknown-unknown]
 rustflags = ["-Clink-args=-z stack-size=10485760"]
-
-[alias]
-wasm = "build --lib --profile wasm-release --target wasm32-unknown-unknown"
-check-wasm = "check --lib --target wasm32-unknown-unknown"
-lint = "clippy --locked --workspace --all-targets --all-features"
-lint-wasm = "clippy --locked --lib --target wasm32-unknown-unknown --all-features"

@@ -8,7 +8,8 @@ it does not embed a JavaScript runtime or call a separate Tombi executable.
 ## Build and use
 
 This is an unreleased development plugin. Install Rust through rustup;
-`rust-toolchain.toml` selects the toolchain and WASM target. Build a local artifact:
+`rust-toolchain.toml` selects the toolchain and WASM target. Build a local
+artifact:
 
 ```sh
 cargo wasm --locked
@@ -29,12 +30,13 @@ Point dprint at the resulting file, using a path relative to your configuration:
 }
 ```
 
-The config key is **`toml`**, as in the original plugin, not `tombi`.
-Do not enable another TOML plugin ahead of this one unless that routing is intentional.
+The config key is **`toml`**, as in the original plugin, not `tombi`. Do not
+enable another TOML plugin ahead of this one unless that routing is intentional.
 
-After a public, non-prerelease GitHub release publishes `plugin.wasm`, installation
-through the dprint proxy is `dprint add --checksum kjanat/tombi`. That command is
-not an installation route for a private repository or an unpublished version.
+After a public, non-prerelease GitHub release publishes `plugin.wasm`,
+installation through the dprint proxy is `dprint add --checksum kjanat/tombi`.
+That command is not an installation route for a private repository or an
+unpublished version.
 
 ## Configuration
 
@@ -48,11 +50,12 @@ The generated `schema.json` is the complete configuration reference, including
 upstream descriptions and constraints. Besides formatting rules, `tomlVersion`
 accepts `v1.0.0` or `v1.1.0`; the old unprefixed spellings remain accepted.
 
-Unset rules retain Tombi's defaults. dprint globals are inherited where provided:
-`lineWidth`, `indentWidth`, `useTabs` → `indentStyle`, and `newLineKind` →
-`lineEnding`. An explicit plugin option takes precedence. `null` resets an
-optional rule to Tombi's default, including removing an inherited line-width
-limit. Values outside Tombi's supported range are diagnosed, never truncated.
+Unset rules retain Tombi's defaults. dprint globals are inherited where
+provided: `lineWidth`, `indentWidth`, `useTabs` → `indentStyle`, and
+`newLineKind` → `lineEnding`. An explicit plugin option takes precedence. `null`
+resets an optional rule to Tombi's default, including removing an inherited
+line-width limit. Values outside Tombi's supported range are diagnosed, never
+truncated.
 
 Per-file `overrides` and additive/negated `associations` are handled by dprint.
 For example:
@@ -74,12 +77,13 @@ For example:
 The browser package's binary cannot simply be renamed to `plugin.wasm`: its
 `wasm-bindgen` exports and JavaScript imports are not dprint's plugin protocol.
 Instead, this adapter compiles the upstream formatter/configuration/schema-store
-crates into one dprint WASM module. No formatting algorithm is copied or rewritten.
-A pinned branch of the existing Tombi fork contains a small portability
-delta: disable Chrono's JavaScript backend, avoid a browser RNG backend for hash
-tables, and make browser task spawning opt-in. No formatter, parser, validator
-or date/time algorithm changes are included. See [UPSTREAM.md](UPSTREAM.md) for
-the exact base commit, dependency revision and tradeoffs.
+crates into one dprint WASM module. No formatting algorithm is copied or
+rewritten. A pinned branch of the existing Tombi fork contains a small
+portability delta: disable Chrono's JavaScript backend, avoid a browser RNG
+backend for hash tables, and make browser task spawning opt-in. No formatter,
+parser, validator or date/time algorithm changes are included. See
+[UPSTREAM.md](UPSTREAM.md) for the exact base commit, dependency revision and
+tradeoffs.
 
 The build is Rust-only. `cargo wasm --locked` produces the usable plugin without
 post-link rewriting, Binaryen, a Node build pipeline, or fake host functions.
@@ -99,8 +103,9 @@ Already-formatted input returns dprint's no-change result.
 
 Tombi's formatter API is async, but the offline path must finish in one poll.
 The adapter checks that contract and returns an error on `Pending`; it never
-spins, blocks a thread, or invents a JavaScript event loop. CI tests both the guard
-and the actual WASM artifact so an upstream change cannot silently break it.
+spins, blocks a thread, or invents a JavaScript event loop. CI tests both the
+guard and the actual WASM artifact so an upstream change cannot silently break
+it.
 
 ## Development
 
@@ -114,10 +119,10 @@ cargo wasm --locked
 node scripts/wasm-smoke.mjs
 ```
 
-The last command needs dprint on `PATH` (or `DPRINT_BIN` pointing to it). CI uses
-dprint 0.57.4 and checks the compiled module's imports before running formatting,
-dates, directives, idempotence, diagnostics, associations and overrides through
-the CLI.
+The last command needs dprint on `PATH` (or `DPRINT_BIN` pointing to it). CI
+uses dprint 0.57.4 and checks the compiled module's imports before running
+formatting, dates, directives, idempotence, diagnostics, associations and
+overrides through the CLI.
 
 Commit `Cargo.lock` and the generated `schema.json`. The schema generator sorts
 objects recursively for stable output. CI rejects missing or stale generated
@@ -125,8 +130,8 @@ files. When updating Tombi, update every pinned revision together, regenerate
 the lockfile and schema, and rerun the native and WASM gates.
 
 Releases use bare semver tags matching `Cargo.toml`, and publish the exact
-`plugin.wasm` and `schema.json` that passed CI. Published versions are immutable;
-fix a bad release with a new version, not a replaced binary.
+`plugin.wasm` and `schema.json` that passed CI. Published versions are
+immutable; fix a bad release with a new version, not a replaced binary.
 
 ## License
 

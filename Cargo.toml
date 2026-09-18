@@ -1,55 +1,55 @@
 [package]
-name = "dprint-plugin-tombi"
-version = "0.1.0"
-edition = "2024"
+name        = "dprint-plugin-tombi"
+version     = "0.1.0"
+edition     = "2024"
 description = "A sandboxed dprint plugin for formatting TOML with Tombi"
-repository = "https://github.com/kjanat/dprint-plugin-tombi"
-license = "MIT"
-readme = "README.md"
-publish = false
-keywords = ["dprint", "formatter", "tombi", "toml", "wasm"]
-categories = ["development-tools", "text-editors"]
+readme      = "README.md"
+repository  = "https://github.com/kjanat/dprint-plugin-tombi"
+license     = "MIT"
+keywords    = ["dprint", "formatter", "tombi", "toml", "wasm"]
+categories  = ["development-tools", "text-editors"]
+publish     = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "generate-schema"
-path = "src/bin/generate_schema.rs"
+name              = "generate-schema"
+path              = "src/bin/generate_schema.rs"
 required-features = ["schema"]
 
 [dependencies]
-anyhow = "1"
-dprint-core = { version = "0.69.1", features = ["wasm"] }
-itertools = "0.14"
-schemars = { version = "1.2.1", optional = true }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+anyhow             = "1"
+dprint-core        = { version = "0.69.1", features = ["wasm"] }
+itertools          = "0.14"
+schemars           = { version = "1.2.1", optional = true }
+serde              = { version = "1", features = ["derive"] }
+serde_json         = "1"
 # Upstream Tombi v1.5.5 with a narrow headless-build portability delta.
 # Formatter/parser algorithms are unchanged; see UPSTREAM.md for the exact diff.
-tombi-config = { git = "https://github.com/kjanat/tombi", rev = "0428b31911e4623574b10c1d4fbc9f63a63999d6", features = ["serde"] }
-tombi-formatter = { git = "https://github.com/kjanat/tombi", rev = "0428b31911e4623574b10c1d4fbc9f63a63999d6" }
+tombi-config       = { git = "https://github.com/kjanat/tombi", rev = "0428b31911e4623574b10c1d4fbc9f63a63999d6", features = ["serde"] }
+tombi-formatter    = { git = "https://github.com/kjanat/tombi", rev = "0428b31911e4623574b10c1d4fbc9f63a63999d6" }
 tombi-schema-store = { git = "https://github.com/kjanat/tombi", rev = "0428b31911e4623574b10c1d4fbc9f63a63999d6", default-features = false }
 
 [features]
 default = []
-schema = ["dep:schemars", "tombi-config/jsonschema"]
-
-[lints.rust]
-warnings = "deny"
-unsafe_code = "deny"
+schema  = ["dep:schemars", "tombi-config/jsonschema"]
 
 [lints.clippy]
-all = { level = "deny", priority = -1 }
-pedantic = { level = "deny", priority = -1 }
-nursery = { level = "deny", priority = -1 }
-cargo = { level = "deny", priority = -1 }
+all                     = { level = "deny", priority = -1 }
+cargo                   = { level = "deny", priority = -1 }
 multiple_crate_versions = "allow"
+nursery                 = { level = "deny", priority = -1 }
+pedantic                = { level = "deny", priority = -1 }
+
+[lints.rust]
+unsafe_code = "deny"
+warnings    = "deny"
 
 [profile.wasm-release]
-inherits = "release"
-opt-level = "z"
-strip = true
-lto = "fat"
-panic = "abort"
+inherits      = "release"
+opt-level     = "z"
+strip         = true
+lto           = "fat"
+panic         = "abort"
 codegen-units = 1

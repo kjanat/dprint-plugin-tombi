@@ -36,27 +36,37 @@ function run(command, successful = true) {
   else assert.notEqual(result.status, 0, "Expected dprint to reject this input/configuration");
   return result;
 }
-function contents(name) { return readFileSync(join(dir, name), "utf8"); }
-function writeConfig() { writeFileSync(configPath, JSON.stringify(config)); }
+function contents(name) {
+  return readFileSync(join(dir, name), "utf8");
+}
+function writeConfig() {
+  writeFileSync(configPath, JSON.stringify(config));
+}
 try {
   writeConfig();
   writeFileSync(join(dir, "fixture.toml"), readFileSync(join(root, "tests/fixtures/source.toml")));
-  writeFileSync(join(dir, "normal.toml"), 'name="demo"\n');
-  writeFileSync(join(dir, "extra.toml-extra"), 'name="demo"\n');
+  writeFileSync(join(dir, "normal.toml"), "name=\"demo\"\n");
+  writeFileSync(join(dir, "extra.toml-extra"), "name=\"demo\"\n");
   writeFileSync(join(dir, "override.toml"), "name='demo'\n");
   writeFileSync(join(dir, "excluded.toml"), "a=1\n");
   const disabled = "#:tombi format.disabled = true\n\na=1\n";
   writeFileSync(join(dir, "disabled.toml"), disabled);
-  writeFileSync(join(dir, "dates.toml"), "offset=1979-05-27T07:32:00Z\nlocal=1979-05-27T07:32:00\ndate=1979-05-27\ntime=07:32:00\n");
+  writeFileSync(
+    join(dir, "dates.toml"),
+    "offset=1979-05-27T07:32:00Z\nlocal=1979-05-27T07:32:00\ndate=1979-05-27\ntime=07:32:00\n",
+  );
   run(["check"], false);
   run(["fmt"]);
   assert.equal(contents("fixture.toml"), readFileSync(join(root, "tests/fixtures/expected.toml"), "utf8"));
   assert.equal(contents("normal.toml"), "name = 'demo'\n");
   assert.equal(contents("extra.toml-extra"), "name = 'demo'\n");
-  assert.equal(contents("override.toml"), 'name = "demo"\n');
+  assert.equal(contents("override.toml"), "name = \"demo\"\n");
   assert.equal(contents("excluded.toml"), "a=1\n");
   assert.equal(contents("disabled.toml"), disabled);
-  assert.equal(contents("dates.toml"), "offset = 1979-05-27T07:32:00Z\nlocal = 1979-05-27T07:32:00\ndate = 1979-05-27\ntime = 07:32:00\n");
+  assert.equal(
+    contents("dates.toml"),
+    "offset = 1979-05-27T07:32:00Z\nlocal = 1979-05-27T07:32:00\ndate = 1979-05-27\ntime = 07:32:00\n",
+  );
   run(["check"]);
   run(["fmt"]);
   run(["check"]);
@@ -74,7 +84,9 @@ try {
   writeConfig();
   const unknown = run(["check"], false);
   assert.match(unknown.stdout + unknown.stderr, /misspelledOption/);
-  console.log("WASM imports, formatting, dates, directives, idempotence, associations, overrides, and diagnostics passed.");
+  console.log(
+    "WASM imports, formatting, dates, directives, idempotence, associations, overrides, and diagnostics passed.",
+  );
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
