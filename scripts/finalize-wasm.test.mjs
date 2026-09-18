@@ -32,6 +32,18 @@ test("reachable dprint imports are preserved", () => {
   assert.equal(instance.exports.format(), 7);
 });
 
+test("multiple imports do not opt into experimental compact-import encoding", () => {
+  const output = finalizeWasm(wasm(`(module
+    (import "dprint" "first" (func $first))
+    (import "dprint" "second" (func $second))
+    (import "dprint" "third" (func $third))
+    (func $format (call $first) (call $second) (call $third))
+    (export "format" (func $format))
+  )`));
+  const module = new WebAssembly.Module(output);
+  assert.equal(WebAssembly.Module.imports(module).length, 3);
+});
+
 test("reachable browser calls fail closed instead of being replaced or removed", () => {
   assert.throws(() => finalizeWasm(wasm(`(module
     (import "__wbindgen_placeholder__" "browser" (func $browser))

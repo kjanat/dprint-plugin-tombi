@@ -18,9 +18,8 @@ export function finalizeWasm(bytes) {
   const module = binaryen.readBinary(bytes);
   let output;
   try {
-    // The passes below only delete unreachable elements; they do not introduce
-    // instructions requiring new features. Both V8 and dprint validate output.
-    module.setFeatures(binaryen.Features.All);
+    // Preserve the input's target features. Enabling Features.All also enables
+    // experimental binary encodings such as compact imports, not just opcodes.
     for (const entry of exports) {
       if (browserExport(entry.name)) module.removeExport(entry.name);
     }
