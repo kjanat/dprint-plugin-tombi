@@ -1,3 +1,5 @@
+#:schema https://www.schemastore.org/cargo-config.json
+
 [target.wasm32-unknown-unknown]
 rustflags = ["-Clink-args=-z stack-size=10485760"]
 
