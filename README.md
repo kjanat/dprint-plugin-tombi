@@ -75,7 +75,7 @@ The browser package's binary cannot simply be renamed to `plugin.wasm`: its
 `wasm-bindgen` exports and JavaScript imports are not dprint's plugin protocol.
 Instead, this adapter compiles the upstream formatter/configuration/schema-store
 crates into one dprint WASM module. No formatting algorithm is copied or rewritten.
-A pinned branch of the existing Tombi fork contains a five-file portability
+A pinned branch of the existing Tombi fork contains a small portability
 delta: disable Chrono's JavaScript backend, avoid a browser RNG backend for hash
 tables, and make browser task spawning opt-in. No formatter, parser, validator
 or date/time algorithm changes are included. See [UPSTREAM.md](UPSTREAM.md) for

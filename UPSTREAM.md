@@ -3,19 +3,23 @@
 The formatter, parser, validator, configuration and date/time algorithms are
 Tombi v1.5.5, upstream commit `b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36`.
 
-The dependency is pinned to `58187d66515d7b01becc0d9d8f46992119e428bd` in the
+The dependency is pinned to `0428b31911e4623574b10c1d4fbc9f63a63999d6` in the
 existing `kjanat/tombi` fork, on branch `dprint/v1.5.5-headless`. That branch is
 based directly on the upstream release, not the old fork's development history.
 
-[Review the complete five-file portability delta](https://github.com/kjanat/tombi/compare/b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36...58187d66515d7b01becc0d9d8f46992119e428bd).
+[Review the complete ten-file portability delta](https://github.com/kjanat/tombi/compare/b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36...0428b31911e4623574b10c1d4fbc9f63a63999d6).
 
-Only five upstream files differ:
+Only ten upstream files differ:
 
-- `tombi-date-time/Cargo.toml` and `tombi-document-tree-syntax/Cargo.toml` select
-  Chrono features explicitly instead of enabling its default JavaScript Date
-  backend. The `clock` feature remains enabled to preserve the existing
+- The root `Cargo.toml` keeps the single Chrono version declaration and disables
+  its default features at workspace level. `tombi-date-time/Cargo.toml` and
+  `tombi-document-tree-syntax/Cargo.toml` inherit that version and add their
+  required features. The `clock` feature remains enabled to preserve existing
   `chrono::Local` conversion types; it is separate from `wasmbind`. Formatting
   TOML date/time literals does not read the clock or the host's time zone.
+- `tombi-lsp/Cargo.toml`, `tombi-test-lib/Cargo.toml`, `rust/serde_tombi/Cargo.toml`
+  and `xtask/Cargo.toml` explicitly retain `default-features = true` for Chrono,
+  preserving their previous dependency profiles after the workspace change.
 - `tombi-hashmap/Cargo.toml` selects ahash's supported `std` + `no-rng` profile
   for WASM, while preserving ordinary native seeding. This changes hash-table
   seeding, not a randomness API. Fixed seeds are weaker against adversarial
