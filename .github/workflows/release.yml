@@ -1,40 +1,28 @@
 name: Release
-
-on:
-  push:
-    tags: ["[0-9]+.[0-9]+.[0-9]+"]
-
-permissions:
-  contents: read
-
+on: { push: { tags: ["[0-9]+.[0-9]+.[0-9]+"] } }
+permissions: { contents: read }
 jobs:
-  verify:
-    uses: ./.github/workflows/ci.yml
+  verify: { uses: "$/.github/workflows/ci.yml" }
   release:
     needs: verify
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    permissions: { contents: write }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+        with: { persist-credentials: false }
       - name: Validate bare semver and package version
+        shell: python
         run: |
-          python3 - <<'PY'
           import os, re, tomllib
           with open("Cargo.toml", "rb") as manifest:
               version = tomllib.load(manifest)["package"]["version"]
           tag = os.environ["GITHUB_REF_NAME"]
           if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", tag) or tag != version:
               raise SystemExit(f"Tag {tag!r} does not match package version {version!r}")
-          PY
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: plugin
+        with: { name: plugin }
       - name: Publish the tested artifact without replacing existing releases
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           cat > release-notes.md <<'EOF'
           ## Tombi formatter for dprint
@@ -42,8 +30,13 @@ jobs:
           Uses the upstream Tombi Rust formatter in dprint's WASM sandbox.
           The configuration key is `toml`, not `tombi`.
 
-          Download `plugin.wasm` and reference its local path in your dprint config.
-          For a public repository/release, use `dprint add --checksum kjanat/tombi`.
+          Add using:
+
+          ```sh
+          dprint add kjanat/tombi
+          ```
+
+          Or download `plugin.wasm` and reference its local path in your dprint config.
           See the README for sandbox limitations and configuration.
           EOF
           gh release create "$GITHUB_REF_NAME" plugin.wasm schema.json \
