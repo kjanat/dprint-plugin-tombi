@@ -31,6 +31,11 @@ tombi-formatter = { git = "https://github.com/tombi-toml/tombi", rev = "b598e6fb
 # No reqwest/gloo-net backend: dprint's sandbox has no network or JS runtime.
 tombi-schema-store = { git = "https://github.com/tombi-toml/tombi", rev = "b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36", default-features = false }
 
+# Only portability helpers are patched; formatter/parser/config stay upstream.
+[patch."https://github.com/tombi-toml/tombi"]
+tombi-hashmap = { path = "vendor/tombi-hashmap" }
+tombi-future = { path = "vendor/tombi-future" }
+
 [features]
 default = []
 schema = ["dep:schemars", "tombi-config/jsonschema"]

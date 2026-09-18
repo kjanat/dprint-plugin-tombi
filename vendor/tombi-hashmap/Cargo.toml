@@ -1,0 +1,23 @@
+[package]
+name = "tombi-hashmap"
+version = "0.0.0-dev"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/tombi-toml/tombi"
+description = "Tombi hash map aliases with a non-browser WASM dependency profile"
+publish = false
+
+[dependencies]
+indexmap = "2.9.0"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+ahash = "0.8.11"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+# Hash-table seeding only. Use ahash's supported no-RNG mode, not a fake
+# getrandom implementation and not a browser getRandomValues import.
+ahash = { version = "0.8.11", default-features = false, features = ["std", "no-rng"] }
+
+[features]
+default = []
+serde = ["ahash/serde", "indexmap/serde"]
