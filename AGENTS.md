@@ -1,65 +1,67 @@
-# AGENTS.md - dprint-plugin-tombi
+# AGENTS.md — dprint-plugin-tombi
 
-## Overview
+## Architecture
 
-dprint plugin wrapping Tombi TOML formatter for use with dprint.
+This is a Rust → `wasm32-unknown-unknown` dprint plugin wrapping the same formatter
+engine as `tombi-wasm-lib`. The browser WASM ABI is not compatible with dprint.
+Do not add a JS runtime, process plugin, copied formatter or post-link import
+stubs. All Tombi dependencies are pinned to the same immutable commit.
 
-## Build & Test Commands
+The dependency is based directly on upstream v1.5.5 with a five-file portability
+delta in the existing Tombi fork. See UPSTREAM.md for provenance and hash-seeding
+tradeoffs. Keep the formatter/parser algorithms unchanged. Prefer upstream
+non-browser feature support when available rather than growing the fork.
 
-- `cargo build` - Build native (for testing)
-- `cargo build --release --target=wasm32-unknown-unknown` - Build wasm plugin
-- `cargo test` - Run tests
-- `cargo clippy` - Lint
-- `cargo fmt` - Format
-- `cargo run --bin generate-schema --features schema` - Generate schema.json
+Keep the existing configuration key `toml`. `src/configuration.rs` discovers and
+validates upstream `FormatRules` through serde, exposing keys in camelCase.
+Unset rules retain upstream defaults; plugin keys override inherited globals.
+Invalid/unknown configuration produces diagnostics, not silent coercions.
 
-## Code Style
+`src/handler.rs` supplies an offline schema store with disk caching disabled and
+polls the formatter once. A pending future is an error, never a busy loop. Keep
+the pending-future regression and actual WASM execution gate. Do not claim
+filesystem config discovery, remote schema support or a separate lint API.
 
-- **Rust edition**: 2024
-- **Comments**: English only
-- **Errors**: Use `anyhow` for error handling
+`cargo wasm --locked` produces the distributable artifact directly. There is no
+Binaryen finalization, export rewriting, or Node build dependency. The Node
+integration-test script inspects that unmodified artifact and executes it in
+dprint; Node is not required to build or run the plugin.
 
-## Project Structure
+## Verification
 
-- `src/lib.rs` - Plugin entry point, wasm macro
-- `src/handler.rs` - dprint SyncPluginHandler implementation, format logic
-- `src/configuration.rs` - Configuration struct with schemars derive for schema
-  generation
-- `src/bin/generate_schema.rs` - Binary to auto-generate schema.json (generated
-  at release, not committed)
+```sh
+cargo test --locked --all-features
+cargo lint
+cargo lint-wasm
+cargo fmt --all -- --check
+cargo run --locked --bin generate-schema --features schema
+cargo wasm --locked
+node scripts/wasm-smoke.mjs
+```
 
-## Key Dependencies
+Run strict Clippy on all native targets/features and the WASM library. Fix
+findings instead of weakening lint policy. The integration script needs dprint
+on PATH or `DPRINT_BIN`; it rejects non-dprint imports and tests the real CLI.
+Native tests alone are not evidence of WASM compatibility.
 
-- `dprint-core` - dprint plugin interface (wasm feature)
-- `tombi-formatter` - Core TOML formatting
-- `tombi-config` - Tombi configuration types
-- `tombi-parser` - TOML parsing
-- `tombi-schema-store` - Schema resolution (required by formatter API, used
-  minimally)
-- `tombi-toml-version` - TOML version enum
-- `schemars` - JSON Schema generation (optional, schema feature)
+## Generated files and release
 
-## Architecture Notes
+Commit `Cargo.lock` and `schema.json`; CI checks they are tracked and unchanged
+by generation. Never hand-edit schema properties. Defaults, descriptions, enums
+and numeric constraints come from upstream Rust types. Keep the runtime and
+schema key sets identical, including supported version aliases.
 
-- `tombi-schema-store` is architecturally required by `Formatter::new()` but
-  used with empty store
-- Native builds use tokio runtime for async; wasm async handling is TODO
-- Configuration maps dprint global config (lineWidth, useTabs, etc.) to Tombi
-  equivalents
-- Schema is auto-generated from Configuration struct - update config, regenerate
-  schema
+URLs derive from `package.repository` and `package.version` through `build.rs`.
+Use bare semver release tags and the artifact name `plugin.wasm`. Publish the
+exact artifact that passed CI, not a separately rebuilt binary. Never replace
+existing release artifacts.
 
-## CI/CD
+The public dprint proxy requires a public repository and a published release.
+Do not describe an unreleased/private build as publicly installable.
 
-- `.github/workflows/ci.yml` - Test, lint, schema check, wasm build on PR/push
-- `.github/workflows/release.yml` - Tag-triggered release with plugin.wasm +
-  schema.json
-  - Validates git tag matches Cargo.toml version
-  - Generates schema.json fresh with version from Cargo.toml
-  - Asset named `plugin.wasm` for dprint proxy service compatibility
+## Style
 
-## Wasm Status
-
-Currently blocked on upstream tombi tokio dependencies not supporting
-wasm32-unknown-unknown. Requires feature flags in tombi crates for proper wasm
-support.
+Rust edition 2024. English comments. Use dprint's `FormatError` at the plugin API
+boundary and `anyhow` for developer tooling. Reject invalid UTF-8 and unsupported
+ranges. Preserve no-change/idempotence and cancellation checks. Keep upstream
+licensing notices.

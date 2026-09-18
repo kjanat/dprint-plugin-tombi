@@ -1,6 +1,6 @@
 {
-  // This plugin!
-  // "tombi": {},
+  // This plugin (enable after building with `cargo wasm --locked`):
+  // "toml": {},
 
   // Other plugins:
   "typescript": {},
@@ -23,15 +23,15 @@
       },
     ],
   },
-  // Files to exclude from formatting
   "excludes": [
     "**/node_modules",
     "**/*-lock.json",
-    "**/target"
+    "**/target",
+    "tests/fixtures/**",
+    "schema.json"
   ],
-  // Plugins to use
   "plugins": [
-    // "./target/wasm32-unknown-unknown/release/dprint_plugin_tombi.wasm",
+    // "./target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm",
     "https://plugins.dprint.dev/typescript-0.95.13.wasm",
     "https://plugins.dprint.dev/json-0.21.0.wasm",
     "https://plugins.dprint.dev/markdown-0.20.0.wasm",

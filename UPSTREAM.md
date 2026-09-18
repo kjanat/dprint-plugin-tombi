@@ -3,17 +3,19 @@
 The formatter, parser, validator, configuration and date/time algorithms are
 Tombi v1.5.5, upstream commit `b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36`.
 
-The dependency is pinned to `b7d9225298676fde124c9cace387e0d846c64ec0` in the
-existing `kjanat/tombi` fork, on branch `dprint/v1.5.5-headless`. Its parent is
-exactly that upstream release commit, not the old fork's development history.
+The dependency is pinned to `58187d66515d7b01becc0d9d8f46992119e428bd` in the
+existing `kjanat/tombi` fork, on branch `dprint/v1.5.5-headless`. That branch is
+based directly on the upstream release, not the old fork's development history.
 
-[Review the complete portability commit](https://github.com/kjanat/tombi/commit/b7d9225298676fde124c9cace387e0d846c64ec0).
+[Review the complete five-file portability delta](https://github.com/kjanat/tombi/compare/b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36...58187d66515d7b01becc0d9d8f46992119e428bd).
 
 Only five upstream files differ:
 
 - `tombi-date-time/Cargo.toml` and `tombi-document-tree-syntax/Cargo.toml` select
-  Chrono's calendar/serialization support without unnecessary clock/browser
-  defaults. TOML date/time parsing does not need the current time.
+  Chrono features explicitly instead of enabling its default JavaScript Date
+  backend. The `clock` feature remains enabled to preserve the existing
+  `chrono::Local` conversion types; it is separate from `wasmbind`. Formatting
+  TOML date/time literals does not read the clock or the host's time zone.
 - `tombi-hashmap/Cargo.toml` selects ahash's supported `std` + `no-rng` profile
   for WASM, while preserving ordinary native seeding. This changes hash-table
   seeding, not a randomness API. Fixed seeds are weaker against adversarial
@@ -24,16 +26,16 @@ Only five upstream files differ:
   into that backend. The headless formatter does not enable it; no fake task
   scheduler is supplied.
 
-The plugin disables schema-store HTTP features and disk caching. A real dprint
-WASM host cannot supply JavaScript, filesystem or browser-clock APIs.
+The plugin disables schema-store HTTP features and disk caching. The artifact
+must import only dprint host functions, not JavaScript, WASI or browser APIs.
 
 ## Why there is no post-link workaround
 
 An intermediate experiment removed browser exports and ran Binaryen dead-code
 elimination. Browser callbacks could remain in indirect-function tables, so
-that was not a clean source-level solution. The final implementation removes
-the dependencies at source instead. There is no Binaryen dependency, export
-rewriting, import stubbing, or copied formatter in this repository.
+that was not a clean source-level solution. The implementation removes the
+unneeded dependencies at source instead. There is no Binaryen dependency,
+export rewriting, import stubbing, or copied formatter in this repository.
 
 ## Updating
 
