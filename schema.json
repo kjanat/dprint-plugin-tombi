@@ -675,7 +675,7 @@
       "type": "integer"
     }
   },
-  "$id": "https://plugins.dprint.dev/kjanat/tombi/0.1.0/schema.json",
+  "$id": "https://plugins.dprint.dev/kjanat/tombi/0.1.1/schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Validated Tombi options. Unset rules retain upstream defaults.",
