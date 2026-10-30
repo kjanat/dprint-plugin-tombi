@@ -286,10 +286,10 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tombi-config",
+ "tombi-config 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8)",
  "tombi-formatter",
  "tombi-schema-store",
- "tombi-uri",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1127,7 +1127,7 @@ dependencies = [
  "tombi-hashmap",
  "tombi-text",
  "tombi-toml-text",
- "tombi-toml-version",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1137,7 +1137,7 @@ source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f4
 dependencies = [
  "tombi-date-time",
  "tombi-text",
- "tombi-toml-version",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1151,8 +1151,8 @@ dependencies = [
  "tombi-ast",
  "tombi-text",
  "tombi-toml-text",
- "tombi-toml-version",
- "tombi-uri",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1164,7 +1164,7 @@ dependencies = [
  "log",
  "thiserror",
  "tokio",
- "tombi-uri",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1174,12 +1174,12 @@ source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f4
 dependencies = [
  "serde",
  "thiserror",
- "tombi-schema-type",
- "tombi-severity-level",
+ "tombi-schema-type 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-severity-level 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "tombi-text",
- "tombi-toml-version",
- "tombi-uri",
- "tombi-x-keyword",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-x-keyword 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1202,7 +1202,22 @@ source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f4
 dependencies = [
  "tokio",
  "tombi-schema-store",
- "tombi-uri",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+]
+
+[[package]]
+name = "tombi-config"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8#3586e23f5a523729e7e7210bf2b2e10d3e0729d8"
+dependencies = [
+ "schemars",
+ "serde",
+ "thiserror",
+ "tombi-schema-type 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8)",
+ "tombi-severity-level 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8)",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8)",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8)",
+ "tombi-x-keyword 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8)",
 ]
 
 [[package]]
@@ -1210,14 +1225,13 @@ name = "tombi-config"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
 dependencies = [
- "schemars",
  "serde",
  "thiserror",
- "tombi-schema-type",
- "tombi-severity-level",
- "tombi-toml-version",
- "tombi-uri",
- "tombi-x-keyword",
+ "tombi-schema-type 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-severity-level 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-x-keyword 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1254,7 +1268,7 @@ dependencies = [
  "tombi-hashmap",
  "tombi-parser",
  "tombi-text",
- "tombi-toml-version",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1283,7 +1297,7 @@ dependencies = [
  "tombi-hashmap",
  "tombi-text",
  "tombi-toml-text",
- "tombi-toml-version",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
 ]
 
 [[package]]
@@ -1297,7 +1311,7 @@ dependencies = [
  "tombi-ast-syntax",
  "tombi-comment-directive",
  "tombi-comment-directive-serde",
- "tombi-config",
+ "tombi-config 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "tombi-diagnostic",
  "tombi-document-tree-syntax",
  "tombi-future",
@@ -1306,10 +1320,10 @@ dependencies = [
  "tombi-regex",
  "tombi-schema-store",
  "tombi-text",
- "tombi-uri",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "tombi-validator",
  "tombi-version-sort",
- "tombi-x-keyword",
+ "tombi-x-keyword 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "unicode-segmentation",
 ]
 
@@ -1432,24 +1446,41 @@ dependencies = [
  "tombi-accessor",
  "tombi-ast-syntax",
  "tombi-cache",
- "tombi-config",
+ "tombi-config 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "tombi-diagnostic",
  "tombi-document-tree-syntax",
  "tombi-fs",
  "tombi-future",
  "tombi-hashmap",
  "tombi-json",
- "tombi-schema-type",
- "tombi-severity-level",
+ "tombi-schema-type 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-severity-level 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "tombi-text",
- "tombi-uri",
- "tombi-x-keyword",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-x-keyword 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+]
+
+[[package]]
+name = "tombi-schema-type"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8#3586e23f5a523729e7e7210bf2b2e10d3e0729d8"
+dependencies = [
+ "schemars",
+ "serde",
 ]
 
 [[package]]
 name = "tombi-schema-type"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "tombi-severity-level"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8#3586e23f5a523729e7e7210bf2b2e10d3e0729d8"
 dependencies = [
  "schemars",
  "serde",
@@ -1460,7 +1491,6 @@ name = "tombi-severity-level"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
 dependencies = [
- "schemars",
  "serde",
 ]
 
@@ -1482,7 +1512,17 @@ version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
 dependencies = [
  "thiserror",
- "tombi-toml-version",
+ "tombi-toml-version 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+]
+
+[[package]]
+name = "tombi-toml-version"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8#3586e23f5a523729e7e7210bf2b2e10d3e0729d8"
+dependencies = [
+ "clap",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -1491,8 +1531,17 @@ version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
 dependencies = [
  "clap",
- "schemars",
  "serde",
+]
+
+[[package]]
+name = "tombi-uri"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8#3586e23f5a523729e7e7210bf2b2e10d3e0729d8"
+dependencies = [
+ "percent-encoding",
+ "serde",
+ "url",
 ]
 
 [[package]]
@@ -1529,10 +1578,10 @@ dependencies = [
  "tombi-parser",
  "tombi-regex",
  "tombi-schema-store",
- "tombi-severity-level",
+ "tombi-severity-level 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "tombi-text",
- "tombi-uri",
- "tombi-x-keyword",
+ "tombi-uri 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
+ "tombi-x-keyword 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b)",
  "uuid",
 ]
 
@@ -1547,9 +1596,17 @@ dependencies = [
 [[package]]
 name = "tombi-x-keyword"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
+source = "git+https://github.com/kjanat/tombi?rev=3586e23f5a523729e7e7210bf2b2e10d3e0729d8#3586e23f5a523729e7e7210bf2b2e10d3e0729d8"
 dependencies = [
  "schemars",
+ "serde",
+]
+
+[[package]]
+name = "tombi-x-keyword"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=3bf590560c7196ad7251d3e15098f47472682e6b#3bf590560c7196ad7251d3e15098f47472682e6b"
+dependencies = [
  "serde",
 ]
 
