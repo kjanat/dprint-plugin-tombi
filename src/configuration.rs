@@ -100,7 +100,7 @@ pub fn resolve_config(
         Configuration {
             toml_version,
             // Each field was deserialized independently above. There are no
-            // cross-field deserialization constraints in the pinned type.
+            // cross-field deserialization constraints in the upstream type.
             rules: serde_json::from_value(Value::Object(rules))
                 .expect("individually validated Tombi rules must deserialize together"),
             schemas,

@@ -1,5 +1,6 @@
 name: Release
-on: { push: { tags: ["[0-9]+.[0-9]+.[0-9]+"] } }
+# a tag push, or a dispatch on a tag from auto-release.yml
+on: { push: { tags: ["[0-9]+.[0-9]+.[0-9]+"] }, workflow_dispatch: null }
 permissions: { contents: read }
 jobs:
   verify: { uses: "$/.github/workflows/ci.yml" }
@@ -13,7 +14,10 @@ jobs:
       - name: Validate bare semver and package version
         shell: python
         run: |
-          import os, re, tomllib
+          import os
+          import re
+          import tomllib
+
           with open("Cargo.toml", "rb") as manifest:
               version = tomllib.load(manifest)["package"]["version"]
           tag = os.environ["GITHUB_REF_NAME"]

@@ -5,8 +5,7 @@
 This is a Rust → `wasm32-unknown-unknown` dprint plugin wrapping the same
 formatter engine as `tombi-wasm-lib`. The browser WASM ABI is not compatible
 with dprint. Do not add a JS runtime, process plugin, copied formatter or
-post-link import stubs. All Tombi dependencies are pinned to the same immutable
-commit.
+post-link import stubs. All Tombi dependencies use the same immutable commit.
 
 The dependency is based directly on upstream v1.9.8 with a small portability
 delta in the existing Tombi fork. See UPSTREAM.md for provenance and

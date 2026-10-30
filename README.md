@@ -2,20 +2,17 @@
 
 A dprint TOML formatter using the same Rust formatting engine as
 [Tombi's `tombi-wasm-lib`](https://tombi-toml.github.io/tombi/docs/wasm/tombi-wasm-lib).
-The engine is pinned to Tombi **v1.9.8**. The plugin exposes dprint's WASM ABI;
-it does not embed a JavaScript runtime or call a separate Tombi executable.
+The engine is Tombi **v1.9.8**. The plugin exposes dprint's WASM ABI; it does
+not embed a JavaScript runtime or call a separate Tombi executable.
 
-## Build and use
-
-This is an unreleased development plugin. Install Rust through rustup;
-`rust-toolchain.toml` selects the toolchain and WASM target. Build a local
-artifact:
+## Install
 
 ```sh
-cargo wasm --locked
+dprint add kjanat/tombi
 ```
 
-Point dprint at the resulting file, using a path relative to your configuration:
+Then configure it under the **`toml`** key, as in the original plugin, not
+`tombi`:
 
 ```jsonc
 {
@@ -23,20 +20,12 @@ Point dprint at the resulting file, using a path relative to your configuration:
     "lineWidth": 100,
     "indentWidth": 2,
     "lineEnding": "auto"
-  },
-  "plugins": [
-    "./target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm"
-  ]
+  }
 }
 ```
 
-The config key is **`toml`**, as in the original plugin, not `tombi`. Do not
-enable another TOML plugin ahead of this one unless that routing is intentional.
-
-After a public, non-prerelease GitHub release publishes `plugin.wasm`,
-installation through the dprint proxy is `dprint add --checksum kjanat/tombi`.
-That command is not an installation route for a private repository or an
-unpublished version.
+Do not enable another TOML plugin ahead of this one unless that routing is
+intentional.
 
 ## Configuration
 
@@ -78,12 +67,11 @@ The browser package's binary cannot simply be renamed to `plugin.wasm`: its
 `wasm-bindgen` exports and JavaScript imports are not dprint's plugin protocol.
 Instead, this adapter compiles the upstream formatter/configuration/schema-store
 crates into one dprint WASM module. No formatting algorithm is copied or
-rewritten. A pinned branch of the existing Tombi fork contains a small
-portability delta: disable Chrono's JavaScript backend, avoid a browser RNG
-backend for hash tables, and make browser task spawning opt-in. No formatter,
-parser, validator or date/time algorithm changes are included. See
-[UPSTREAM.md](UPSTREAM.md) for the exact base commit, dependency revision and
-tradeoffs.
+rewritten. A branch of the existing Tombi fork contains a small portability
+delta: disable Chrono's JavaScript backend, avoid a browser RNG backend for hash
+tables, and make browser task spawning opt-in. No formatter, parser, validator
+or date/time algorithm changes are included. See [UPSTREAM.md](UPSTREAM.md) for
+the exact base commit, dependency revision and tradeoffs.
 
 The build is Rust-only. `cargo wasm --locked` produces the usable plugin without
 post-link rewriting, Binaryen, a Node build pipeline, or fake host functions.
@@ -140,14 +128,14 @@ node scripts/wasm-smoke.mjs
 ```
 
 The last command needs dprint on `PATH` (or `DPRINT_BIN` pointing to it). CI
-uses dprint 0.57.4 and checks the compiled module's imports before running
-formatting, dates, directives, idempotence, diagnostics, associations and
-overrides through the CLI.
+runs it with the latest kjanat/dprint and upstream dprint, and checks the
+compiled module's imports before running formatting, dates, directives,
+idempotence, diagnostics, associations and overrides through the CLI.
 
 Commit `Cargo.lock` and the generated `schema.json`. The schema generator sorts
 objects recursively for stable output. CI rejects missing or stale generated
-files. When updating Tombi, update every pinned revision together, regenerate
-the lockfile and schema, and rerun the native and WASM gates.
+files. When updating Tombi, update every Tombi revision together, regenerate the
+lockfile and schema, and rerun the native and WASM gates.
 
 Releases use bare semver tags matching `Cargo.toml`, and publish the exact
 `plugin.wasm` and `schema.json` that passed CI. Published versions are
