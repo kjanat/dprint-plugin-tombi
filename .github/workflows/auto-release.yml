@@ -1,0 +1,72 @@
+name: Auto release
+
+# A dependency update Renovate merged that changes the plugin is released as
+# the next patch version. The bump is committed and tagged here, and the
+# release workflow is dispatched for the tag: a tag pushed with GITHUB_TOKEN
+# doesn't trigger workflows, a dispatch does.
+on:
+  push:
+    branches: [master]
+    paths: [Cargo.toml, Cargo.lock, rust-toolchain.toml, "src/**"]
+
+permissions: { contents: read }
+
+concurrency: { group: auto-release, cancel-in-progress: false }
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the version bump and its tag
+      actions: write # dispatch the release workflow
+      pull-requests: read # find the pull request the commit merged
+    steps:
+      - name: Only for pull requests Renovate opened
+        id: author
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          author=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[0].user.login // ""')
+          echo "Merged pull request by: ${author:-none}"
+          echo "renovate=$([[ "${author}" == "renovate[bot]" ]] && echo true || echo false)" >> "${GITHUB_OUTPUT}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.author.outputs.renovate == 'true'
+      - name: Bump the patch version, commit and tag it
+        if: steps.author.outputs.renovate == 'true'
+        id: bump
+        shell: python
+        run: |
+          import os
+          import re
+          import subprocess
+          import tomllib
+
+          with open("Cargo.toml", "rb") as manifest:
+              current = tomllib.load(manifest)["package"]["version"]
+          major, minor, patch = (int(part) for part in current.split("."))
+          version = f"{major}.{minor}.{patch + 1}"
+
+          def bump(path, pattern):
+              with open(path, encoding="utf-8", newline="") as file:
+                  text = file.read()
+              text, count = re.subn(pattern, lambda match: match.group(1) + version + match.group(2), text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                  raise SystemExit(f"No version to bump in {path}")
+              with open(path, "w", encoding="utf-8", newline="") as file:
+                  file.write(text)
+
+          # only the version, keeping the manifest's alignment
+          bump("Cargo.toml", r'^(version\s*=\s*")' + re.escape(current) + r'(")')
+          bump("Cargo.lock", r'(name = "dprint-plugin-tombi"\nversion = ")' + re.escape(current) + r'(")')
+          git = lambda *args: subprocess.run(["git", *args], check=True)
+          git("config", "user.name", "github-actions[bot]")
+          git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
+          git("commit", "--all", "--message", version)
+          git("tag", version)
+          git("push", "--atomic", "origin", "HEAD:master", version)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\n")
+      - name: Release the tag
+        if: steps.author.outputs.renovate == 'true'
+        env: { GH_TOKEN: "${{ github.token }}", VERSION: "${{ steps.bump.outputs.version }}" }
+        run: gh workflow run release.yml --repo "${GITHUB_REPOSITORY}" --ref "${VERSION}"

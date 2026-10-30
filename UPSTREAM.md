@@ -3,7 +3,7 @@
 The formatter, parser, validator, configuration and date/time algorithms are
 Tombi v1.9.8, upstream commit `081bfcf088589ebd9d151e23010246bb5b40fea6`.
 
-The dependency is pinned to `3bf590560c7196ad7251d3e15098f47472682e6b` in the
+The dependency uses commit `3bf590560c7196ad7251d3e15098f47472682e6b` in the
 existing `kjanat/tombi` fork, on branch `dprint/v1.9.8-headless`. That branch is
 based directly on the upstream release, not the old fork's development history.
 It carries the commits of `dprint/v1.5.5-headless` unchanged, and one more for
@@ -51,8 +51,8 @@ rewriting, import stubbing, or copied formatter in this repository.
 ## Updating
 
 Prefer upstream non-browser feature support when it becomes available. Until
-then, rebase this small portability delta onto the chosen upstream release, pin
-all Tombi dependencies to the resulting immutable commit, and regenerate
+then, rebase this small portability delta onto the chosen upstream release,
+point all Tombi dependencies at the resulting immutable commit, and regenerate
 Cargo.lock and schema.json. Require native tests, strict native/WASM Clippy, and
 the unchanged dprint-only import audit plus real CLI execution to pass. Do not
 expand the fork into an independently maintained formatting engine.

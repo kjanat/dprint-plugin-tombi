@@ -1,0 +1,31 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits"],
+  "timezone": "Europe/Amsterdam",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Merge non-major updates once CI passes; a merged update to the plugin is released by auto-release.yml. Renovate merges itself, as master has no required checks for GitHub's auto-merge to wait for.",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false
+    },
+    {
+      "description": "Require dashboard approval before opening major upgrade PRs.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Tombi comes from a branch of the kjanat/tombi fork with a portability delta, which is rebased onto each upstream release (see UPSTREAM.md and tombi-upstream.yml), not updated to the fork's latest commit.",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["tombi-*"],
+      "enabled": false
+    }
+  ]
+}

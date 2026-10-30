@@ -1,0 +1,40 @@
+name: Tombi upstream
+
+# Renovate doesn't update Tombi: it comes from a branch of the kjanat/tombi
+# fork that carries a portability delta (see UPSTREAM.md). When upstream has
+# a newer release, an issue asks for the delta to be rebased onto it.
+on:
+  schedule: [{ cron: "0 6 * * 1" }]
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write # open the rebase issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Open an issue for a newer Tombi release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          current=$(grep -oE '^Tombi v[0-9]+\.[0-9]+\.[0-9]+' UPSTREAM.md | head -1 | cut -d' ' -f2)
+          latest=$(gh api repos/tombi-toml/tombi/releases/latest --jq .tag_name)
+          echo "Plugin on ${current}, latest ${latest}"
+          if [[ -z "${current}" || -z "${latest}" ]]; then
+            echo "::error::Couldn't read the plugin's or the latest Tombi version"
+            exit 1
+          fi
+          if [[ "$(printf '%s\n%s\n' "${current#v}" "${latest#v}" | sort -V | tail -1)" == "${current#v}" ]]; then
+            exit 0
+          fi
+          title="Update Tombi to ${latest}"
+          if [[ -n "$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "\"${title}\" in:title" --json number --jq '.[0].number')" ]]; then
+            echo "An issue is open already"
+            exit 0
+          fi
+          gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" \
+            --body "Tombi ${latest} is out; the plugin uses ${current}. See \"Updating\" in UPSTREAM.md."
