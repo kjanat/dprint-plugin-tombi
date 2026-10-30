@@ -3,7 +3,7 @@ use dprint_core::configuration::{
 };
 use serde::{Serialize, Serializer};
 use serde_json::{Map, Value, json};
-use tombi_config::{TomlVersion, format::FormatRules};
+use tombi_config::{SchemaItem, TomlVersion, format::FormatRules};
 
 const TOML_VERSION_ALIASES: [(&str, &str); 2] = [("1.0.0", "v1.0.0"), ("1.1.0", "v1.1.0")];
 
@@ -19,6 +19,13 @@ pub struct Configuration {
     #[serde(flatten, serialize_with = "serialize_rules")]
     #[cfg_attr(feature = "schema", schemars(with = "FormatRules"))]
     pub rules: FormatRules,
+    /// Tombi's `[[schemas]]`, with camelCase keys (ex. `tomlVersion`): the
+    /// schemas of the files they include, ahead of the ones built into Tombi.
+    /// A schema can give its files a TOML version, ex. `v1.0.0` for
+    /// `Cargo.toml`, which Cargo reads as TOML 1.0. Remote schemas aren't
+    /// fetched, so only what an entry says itself applies to its files.
+    #[cfg_attr(feature = "schema", schemars(default))]
+    pub schemas: Vec<SchemaItem>,
 }
 
 fn camel_case(key: &str) -> String {
@@ -60,6 +67,7 @@ pub fn resolve_config(
 ) -> (Configuration, Vec<ConfigurationDiagnostic>) {
     let mut diagnostics = Vec::new();
     let toml_version = resolve_version(&mut config, &mut diagnostics);
+    let schemas = resolve_schemas(&mut config, &mut diagnostics);
     let inherited = inherited_rules(global);
     // These Option fields serialize as null. Discovering their names from the
     // upstream type avoids a second, inevitably stale list of supported rules.
@@ -95,6 +103,7 @@ pub fn resolve_config(
             // cross-field deserialization constraints in the pinned type.
             rules: serde_json::from_value(Value::Object(rules))
                 .expect("individually validated Tombi rules must deserialize together"),
+            schemas,
         },
         diagnostics,
     )
@@ -118,6 +127,51 @@ fn inherited_rules(global: &GlobalConfiguration) -> Map<String, Value> {
         rules.insert("line-ending".into(), json!(ending));
     }
     rules
+}
+
+/// The `[[schemas]]` of the configuration, from camelCase keys to Tombi's
+/// kebab-case ones.
+fn resolve_schemas(
+    config: &mut ConfigKeyMap,
+    diagnostics: &mut Vec<ConfigurationDiagnostic>,
+) -> Vec<SchemaItem> {
+    let Some(value) = config.shift_remove("schemas") else {
+        return Vec::new();
+    };
+    serde_json::from_value(kebab_case_keys(json!(value))).unwrap_or_else(|error| {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: "schemas".into(),
+            message: error.to_string(),
+        });
+        Vec::new()
+    })
+}
+
+/// The value with the keys of its objects, at any depth, in kebab case.
+fn kebab_case_keys(value: Value) -> Value {
+    match value {
+        Value::Object(properties) => Value::Object(
+            properties
+                .into_iter()
+                .map(|(key, value)| (kebab_case(&key), kebab_case_keys(value)))
+                .collect(),
+        ),
+        Value::Array(values) => Value::Array(values.into_iter().map(kebab_case_keys).collect()),
+        value => value,
+    }
+}
+
+fn kebab_case(key: &str) -> String {
+    let mut result = String::with_capacity(key.len() + 4);
+    for character in key.chars() {
+        if character.is_ascii_uppercase() {
+            result.push('-');
+            result.push(character.to_ascii_lowercase());
+        } else {
+            result.push(character);
+        }
+    }
+    result
 }
 
 fn resolve_version(

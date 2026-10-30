@@ -2,7 +2,7 @@
 
 A dprint TOML formatter using the same Rust formatting engine as
 [Tombi's `tombi-wasm-lib`](https://tombi-toml.github.io/tombi/docs/wasm/tombi-wasm-lib).
-The engine is pinned to Tombi **v1.5.5**. The plugin exposes dprint's WASM ABI;
+The engine is pinned to Tombi **v1.9.8**. The plugin exposes dprint's WASM ABI;
 it does not embed a JavaScript runtime or call a separate Tombi executable.
 
 ## Build and use
@@ -92,10 +92,30 @@ run the plugin.
 
 The production plugin is intentionally sandboxed. It does not discover
 `tombi.toml` or `pyproject.toml`, read local JSON Schema files, fetch remote
-schemas/catalogs, or expose Tombi's separate lint API. It uses a fresh offline,
-cache-disabled schema store per request. Ordinary formatting and supported
-in-document directives still run through Tombi, but this is not a promise of
-schema-aware formatting parity with the Tombi CLI or browser wrapper.
+schemas/catalogs, or expose Tombi's separate lint API. It uses an offline,
+cache-disabled schema store with the schemas built into Tombi (its catalog, and
+the schemas for `Cargo.toml`, `pyproject.toml` and `tombi.toml`), made once per
+`schemas` configuration and kept. A schema can decide how a file formats, as in
+the CLI: `tombi.toml`'s says TOML v1.1.0, which keeps a multi-line inline table.
+Other schemas can't be fetched, so formatting that depends on them may differ
+from the CLI.
+
+`schemas` takes Tombi's `[[schemas]]` with camelCase keys, ahead of the built-in
+ones. A remote schema Tombi has built in is used from its built-in copy, so an
+entry's settings apply as they do in the CLI. For example, as a `tombi.toml` can
+say that Cargo reads TOML 1.0:
+
+```jsonc
+{
+  "toml": {
+    "schemas": [{
+      "path": "https://www.schemastore.org/cargo.json",
+      "include": ["Cargo.toml", "**/Cargo.toml"],
+      "tomlVersion": "v1.0.0"
+    }]
+  }
+}
+```
 
 Formatting is whole-document only; range requests return an explicit error.
 Invalid UTF-8 is rejected instead of being replaced with replacement characters.

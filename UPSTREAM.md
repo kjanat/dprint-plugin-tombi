@@ -1,15 +1,17 @@
 # Upstream engine and portability delta
 
 The formatter, parser, validator, configuration and date/time algorithms are
-Tombi v1.5.5, upstream commit `b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36`.
+Tombi v1.9.8, upstream commit `081bfcf088589ebd9d151e23010246bb5b40fea6`.
 
-The dependency is pinned to `0428b31911e4623574b10c1d4fbc9f63a63999d6` in the
-existing `kjanat/tombi` fork, on branch `dprint/v1.5.5-headless`. That branch is
+The dependency is pinned to `3bf590560c7196ad7251d3e15098f47472682e6b` in the
+existing `kjanat/tombi` fork, on branch `dprint/v1.9.8-headless`. That branch is
 based directly on the upstream release, not the old fork's development history.
+It carries the commits of `dprint/v1.5.5-headless` unchanged, and one more for
+v1.9.8.
 
-[Review the complete ten-file portability delta](https://github.com/kjanat/tombi/compare/b598e6fb9aab62cd5c8677ac832dd2a9c3b32e36...0428b31911e4623574b10c1d4fbc9f63a63999d6).
+[Review the complete eleven-file portability delta](https://github.com/kjanat/tombi/compare/081bfcf088589ebd9d151e23010246bb5b40fea6...3bf590560c7196ad7251d3e15098f47472682e6b).
 
-Only ten upstream files differ:
+Only eleven upstream files differ:
 
 - The root `Cargo.toml` keeps the single Chrono version declaration and disables
   its default features at workspace level. `tombi-date-time/Cargo.toml` and
@@ -30,6 +32,10 @@ Only ten upstream files differ:
   spawning opt-in through the existing `wasm` feature. `wasm-send` still opts
   into that backend. The headless formatter does not enable it; no fake task
   scheduler is supplied.
+- `tombi-schema-store/Cargo.toml` asks for Tokio's `rt` feature, which its
+  `tokio::task_local!` state needs. Native builds got it through feature
+  unification from other crates; the headless Wasm build has none and didn't
+  compile.
 
 The plugin disables schema-store HTTP features and disk caching. The artifact
 must import only dprint host functions, not JavaScript, WASI or browser APIs.

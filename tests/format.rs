@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use dprint_core::configuration::{ConfigKeyMap, GlobalConfiguration, NewLineKind};
+use dprint_core::configuration::{
+    ConfigKeyMap, ConfigurationDiagnostic, GlobalConfiguration, NewLineKind,
+};
 use dprint_core::plugins::{
     FormatConfigId, FormatResult, NullCancellationToken, PluginResolveConfigurationResult,
     SyncFormatRequest, SyncPluginHandler,
@@ -13,11 +15,11 @@ fn resolve(
     global: &GlobalConfiguration,
 ) -> PluginResolveConfigurationResult<Configuration> {
     let map: ConfigKeyMap = serde_json::from_value(value).unwrap();
-    TombiPluginHandler.resolve_config(map, global)
+    TombiPluginHandler::default().resolve_config(map, global)
 }
 
 fn format(bytes: &[u8], config: &Configuration) -> FormatResult {
-    TombiPluginHandler.format(
+    TombiPluginHandler::default().format(
         SyncFormatRequest {
             file_path: Path::new("test.toml"),
             file_bytes: bytes.to_vec(),
@@ -49,7 +51,7 @@ fn invalid_utf8_is_rejected_without_lossy_replacement() {
 #[test]
 fn syntax_errors_are_not_silently_formatted() {
     let error = format(b"a = [", &Configuration::default()).unwrap_err();
-    assert!(!error.to_string().is_empty());
+    assert_ne!(error.to_string(), "");
 }
 
 #[test]
@@ -84,7 +86,7 @@ fn globals_are_inherited_and_local_options_win() {
         new_line_kind: Some(NewLineKind::CarriageReturnLineFeed),
     };
     let inherited = resolve(json!({}), &global);
-    assert!(inherited.diagnostics.is_empty());
+    assert_eq!(inherited.diagnostics, Vec::<ConfigurationDiagnostic>::new());
     let value = serde_json::to_value(&inherited.config).unwrap();
     assert_eq!(value["lineWidth"], 100);
     assert_eq!(value["indentWidth"], 4);
@@ -95,7 +97,10 @@ fn globals_are_inherited_and_local_options_win() {
         json!({"lineWidth": 80, "indentStyle": "space", "lineEnding": "lf"}),
         &global,
     );
-    assert!(overridden.diagnostics.is_empty());
+    assert_eq!(
+        overridden.diagnostics,
+        Vec::<ConfigurationDiagnostic>::new()
+    );
     let value = serde_json::to_value(&overridden.config).unwrap();
     assert_eq!(value["lineWidth"], 80);
     assert_eq!(value["indentStyle"], "space");
@@ -112,10 +117,9 @@ fn oversized_global_width_is_diagnosed_not_truncated() {
         resolve(json!({}), &global).diagnostics[0].property_name,
         "lineWidth"
     );
-    assert!(
-        resolve(json!({"lineWidth": 80}), &global)
-            .diagnostics
-            .is_empty()
+    assert_eq!(
+        resolve(json!({"lineWidth": 80}), &global).diagnostics,
+        Vec::<ConfigurationDiagnostic>::new()
     );
 }
 
@@ -126,7 +130,7 @@ fn explicit_null_restores_upstream_default() {
         ..GlobalConfiguration::default()
     };
     let resolved = resolve(json!({"lineWidth": null}), &global);
-    assert!(resolved.diagnostics.is_empty());
+    assert_eq!(resolved.diagnostics, Vec::<ConfigurationDiagnostic>::new());
     assert!(resolved.config.rules.line_width.is_none());
 }
 
@@ -137,7 +141,7 @@ fn old_toml_version_aliases_remain_supported() {
             json!({"tomlVersion": version}),
             &GlobalConfiguration::default(),
         );
-        assert!(resolved.diagnostics.is_empty());
+        assert_eq!(resolved.diagnostics, Vec::<ConfigurationDiagnostic>::new());
         assert_eq!(
             serde_json::to_value(resolved.config.toml_version).unwrap(),
             format!("v{version}")
@@ -148,7 +152,7 @@ fn old_toml_version_aliases_remain_supported() {
 #[test]
 fn upstream_default_rules_are_preserved() {
     let resolved = resolve(json!({}), &GlobalConfiguration::default());
-    assert!(resolved.diagnostics.is_empty());
+    assert_eq!(resolved.diagnostics, Vec::<ConfigurationDiagnostic>::new());
     assert_eq!(
         resolved.config.rules,
         tombi_config::format::FormatRules::default()
@@ -162,7 +166,7 @@ fn explicit_crlf_and_auto_newlines_work() {
             json!({"lineEnding": ending}),
             &GlobalConfiguration::default(),
         );
-        assert!(resolved.diagnostics.is_empty());
+        assert_eq!(resolved.diagnostics, Vec::<ConfigurationDiagnostic>::new());
         assert_eq!(
             format(b"a=1\r\n", &resolved.config).unwrap(),
             Some(b"a = 1\r\n".to_vec())
@@ -173,7 +177,7 @@ fn explicit_crlf_and_auto_newlines_work() {
 
 #[test]
 fn metadata_matches_release_contract() {
-    let info = TombiPluginHandler.plugin_info();
+    let info = TombiPluginHandler::default().plugin_info();
     assert_eq!(info.config_key, "toml");
     assert_eq!(info.help_url, env!("CARGO_PKG_REPOSITORY"));
     assert_eq!(info.config_schema_url, SCHEMA_URL);
@@ -192,7 +196,7 @@ fn metadata_matches_release_contract() {
 #[test]
 fn range_requests_do_not_rewrite_the_entire_file() {
     let config = Configuration::default();
-    let result = TombiPluginHandler.format(
+    let result = TombiPluginHandler::default().format(
         SyncFormatRequest {
             file_path: Path::new("test.toml"),
             file_bytes: b"a=1\nb=2\n".to_vec(),
@@ -221,4 +225,47 @@ fn schema_and_runtime_have_exactly_the_same_keys() {
     assert_eq!(schema["$id"], SCHEMA_URL);
     assert_eq!(schema["additionalProperties"], false);
     assert!(schema.get("required").is_none());
+}
+
+fn format_path(path: &str, bytes: &[u8], config: &Configuration) -> FormatResult {
+    TombiPluginHandler::default().format(
+        SyncFormatRequest {
+            file_path: Path::new(path),
+            file_bytes: bytes.to_vec(),
+            config_id: FormatConfigId::uninitialized(),
+            config,
+            range: None,
+            token: &NullCancellationToken,
+        },
+        |_| panic!("TOML formatting must not invoke another plugin"),
+    )
+}
+
+#[test]
+fn a_built_in_schema_decides_like_in_the_cli() {
+    // Tombi's own schema for tombi.toml says TOML v1.1.0, which keeps a
+    // multi-line inline table with a trailing comma, as `tombi format` does
+    let multi_line = b"catalog = {\n  paths = [\n    \"a\",\n    \"b\",\n  ],\n}\n";
+    let config = Configuration::default();
+    assert!(
+        format_path("tombi.toml", multi_line, &config)
+            .unwrap()
+            .is_none()
+    );
+    // any other file goes by the configured TOML version, v1.0.0, without
+    // multi-line inline tables
+    assert_eq!(
+        format_path("other.toml", multi_line, &config).unwrap(),
+        Some(b"catalog = { paths = [\n  \"a\",\n  \"b\",\n] }\n".to_vec())
+    );
+}
+
+#[test]
+fn schemas_with_unknown_properties_are_diagnosed() {
+    let config = resolve(
+        json!({ "schemas": [{ "include": ["*.toml"] }] }),
+        &GlobalConfiguration::default(),
+    );
+    assert_eq!(config.diagnostics.len(), 1);
+    assert_eq!(config.diagnostics[0].property_name, "schemas");
 }

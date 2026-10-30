@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,8 +84,32 @@ try {
   writeConfig();
   const unknown = run(["check"], false);
   assert.match(unknown.stdout + unknown.stderr, /misspelledOption/);
+  delete config.toml.misspelledOption;
+  writeConfig();
+
+  // Tombi's built-in schemas for tombi.toml and Cargo.toml say TOML v1.1.0,
+  // which keeps a multi-line inline table with a trailing comma, as
+  // `tombi format` does. A configured schema comes first: Cargo reads TOML
+  // 1.0, so a tombi.toml can say so for Cargo.toml.
+  for (const name of readdirSync(dir).filter((name) => /\.toml(-extra)?$/.test(name))) rmSync(join(dir, name));
+  // single quotes, as configured above
+  const multiLine = "catalog = {\n  paths = [\n    'a',\n    'b',\n  ],\n}\n";
+  const singleLine = "catalog = { paths = [\n  'a',\n  'b',\n] }\n";
+  writeFileSync(join(dir, "tombi.toml"), multiLine);
+  writeFileSync(join(dir, "Cargo.toml"), multiLine);
+  run(["fmt"]);
+  assert.equal(contents("tombi.toml"), multiLine);
+  assert.equal(contents("Cargo.toml"), multiLine);
+  config.toml.schemas = [
+    { path: "https://www.schemastore.org/cargo.json", include: ["Cargo.toml", "**/Cargo.toml"], tomlVersion: "v1.0.0" },
+  ];
+  writeConfig();
+  run(["fmt"]);
+  assert.equal(contents("tombi.toml"), multiLine);
+  assert.equal(contents("Cargo.toml"), singleLine);
+  run(["check"]);
   console.log(
-    "WASM imports, formatting, dates, directives, idempotence, associations, overrides, and diagnostics passed.",
+    "WASM imports, formatting, dates, directives, idempotence, associations, overrides, diagnostics, and schemas passed.",
   );
 } finally {
   rmSync(dir, { recursive: true, force: true });

@@ -12,6 +12,14 @@
       "minimum": 0,
       "type": "integer"
     },
+    "ArrayValuesOrder": {
+      "enum": [
+        "ascending",
+        "descending",
+        "version-sort"
+      ],
+      "type": "string"
+    },
     "BlankLines": {
       "format": "uint8",
       "maximum": 255,
@@ -23,6 +31,10 @@
       "maximum": 255,
       "minimum": 1,
       "type": "integer"
+    },
+    "BoolDefaultTrue": {
+      "default": true,
+      "type": "boolean"
     },
     "CommentStyle": {
       "description": "The style used to format comments.",
@@ -58,6 +70,11 @@
           "type": "string"
         }
       ]
+    },
+    "GlobPattern": {
+      "description": "Glob pattern used by config include/exclude lists.",
+      "minLength": 1,
+      "type": "string"
     },
     "IndentStyle": {
       "enum": [
@@ -112,6 +129,409 @@
       "minimum": 1,
       "type": "integer"
     },
+    "PatternAccessor": {
+      "description": "To apply it to the Root Table, use `\"\"`.\n\nUse `[*]` to match any array element, or a numeric index such as `[1]`\nto match a specific tuple position.\n\n**Example**:\n  - `\"\"`\n  - `\"tool.*\"`\n  - `\"items[*].name\"`\n  - `\"items[1].name\"`",
+      "minLength": 0,
+      "title": "Accessor pattern",
+      "type": "string"
+    },
+    "RootSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "description": "The file match pattern to exclude the target from applying the schema.\nSupports glob pattern.",
+          "items": {
+            "$ref": "#/$defs/GlobPattern"
+          },
+          "title": "The file match pattern to exclude the schema",
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaFormatOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific format options"
+        },
+        "include": {
+          "description": "The file match pattern to include the target to apply the schema.\nSupports glob pattern.",
+          "items": {
+            "$ref": "#/$defs/GlobPattern"
+          },
+          "minItems": 1,
+          "title": "The file match pattern of the schema",
+          "type": "array"
+        },
+        "lint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaLintOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific lint options"
+        },
+        "overrides": {
+          "items": {
+            "$ref": "#/$defs/SchemaOverrideItem"
+          },
+          "title": "Schema-specific overrides",
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {
+          "examples": [
+            "https://www.schemastore.org/cargo.json",
+            "https://www.schemastore.org/pyproject.json",
+            "tombi://www.schemastore.org/cargo.json",
+            "tombi://www.schemastore.org/pyproject.json",
+            "tombi://www.schemastore.org/tombi.json"
+          ],
+          "title": "The schema path",
+          "type": "string"
+        },
+        "strict": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "If `additionalProperties` is not specified in the JSON Schema,\nthe strict mode treats it as `additionalProperties: false`,\nwhich is different from the JSON Schema specification.\nIf omitted, the global `schema.strict` setting is used.",
+          "title": "Enable strict schema validation"
+        },
+        "toml-version": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TomlVersion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "The TOML version that the schema is available"
+        }
+      },
+      "required": [
+        "path",
+        "include"
+      ],
+      "title": "The schema for the root table",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaArrayValuesOrderRule": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Whether schema-defined array values ordering is enabled"
+        }
+      },
+      "title": "Schema-defined array values ordering",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaFormatOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaFormatRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific format rules"
+        }
+      },
+      "title": "Schema-specific format options",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaFormatRules": {
+      "additionalProperties": false,
+      "properties": {
+        "array-values-order": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaArrayValuesOrderRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Whether schema-defined array values ordering is enabled"
+        },
+        "table-keys-order": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaTableKeysOrderRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Whether schema-defined table key ordering is enabled"
+        }
+      },
+      "title": "Schema-specific format rules",
+      "type": "object",
+      "x-tombi-table-keys-order": "ascending"
+    },
+    "SchemaItem": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RootSchema"
+        },
+        {
+          "$ref": "#/$defs/SubSchema"
+        }
+      ],
+      "title": "Schema item"
+    },
+    "SchemaLintOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaLintRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific lint rules"
+        }
+      },
+      "title": "Schema-specific lint options",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaLintRules": {
+      "additionalProperties": false,
+      "properties": {
+        "deprecated": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeverityLevelDefaultWarn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the deprecated diagnostic level for this schema.",
+          "title": "Deprecated"
+        }
+      },
+      "title": "Schema-specific lint rules",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaOverrideArrayValuesOrderRule": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArrayValuesOrder"
+        },
+        {
+          "$ref": "#/$defs/SchemaArrayValuesOrderRule"
+        }
+      ],
+      "title": "Override array values ordering for matched roots"
+    },
+    "SchemaOverrideFormatOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaOverrideFormatRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific override format rules"
+        }
+      },
+      "title": "Schema-specific override format options",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaOverrideFormatRules": {
+      "additionalProperties": false,
+      "properties": {
+        "array-values-order": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaOverrideArrayValuesOrderRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Override array values ordering for matched roots"
+        },
+        "table-keys-order": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaOverrideTableKeysOrderRule"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Override table key ordering for matched roots"
+        }
+      },
+      "title": "Schema-specific override format rules",
+      "type": "object",
+      "x-tombi-table-keys-order": "ascending"
+    },
+    "SchemaOverrideItem": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaOverrideFormatOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Format options to override"
+        },
+        "lint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaOverrideLintOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Lint options to override"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/PatternAccessor"
+          },
+          "minItems": 1,
+          "title": "Accessor patterns to override",
+          "type": "array"
+        }
+      },
+      "required": [
+        "targets"
+      ],
+      "title": "Schema-specific override item",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaOverrideLintOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaOverrideLintRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific override lint rules"
+        }
+      },
+      "title": "Schema-specific override lint options",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaOverrideLintRules": {
+      "additionalProperties": false,
+      "properties": {
+        "deprecated": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeverityLevelDefaultWarn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Override deprecated diagnostics for matched roots"
+        }
+      },
+      "title": "Schema-specific override lint rules",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SchemaOverrideTableKeysOrderRule": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TableKeysOrder"
+        },
+        {
+          "$ref": "#/$defs/SchemaTableKeysOrderRule"
+        }
+      ],
+      "title": "Override table key ordering for matched roots"
+    },
+    "SchemaTableKeysOrderRule": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Whether schema-defined table key ordering is enabled"
+        }
+      },
+      "title": "Schema-defined table key ordering",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "SeverityLevel": {
+      "enum": [
+        "off",
+        "warn",
+        "error"
+      ],
+      "type": "string"
+    },
+    "SeverityLevelDefaultWarn": {
+      "$ref": "#/$defs/SeverityLevel",
+      "default": "warn"
+    },
     "StringQuoteStyle": {
       "description": "The preferred quote character for strings.",
       "oneOf": [
@@ -131,6 +551,105 @@
           "type": "string"
         }
       ]
+    },
+    "SubSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "exclude": {
+          "description": "The file match pattern to exclude the target from applying the sub schema.\nSupports glob pattern.",
+          "items": {
+            "$ref": "#/$defs/GlobPattern"
+          },
+          "title": "The file match pattern to exclude the sub schema",
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaFormatOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific format options"
+        },
+        "include": {
+          "description": "The file match pattern to include the target to apply the sub schema.\nSupports glob pattern.",
+          "items": {
+            "$ref": "#/$defs/GlobPattern"
+          },
+          "minItems": 1,
+          "title": "The file match pattern of the sub schema",
+          "type": "array"
+        },
+        "lint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchemaLintOptions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Schema-specific lint options"
+        },
+        "overrides": {
+          "items": {
+            "$ref": "#/$defs/SchemaOverrideItem"
+          },
+          "title": "Schema-specific overrides",
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "path": {
+          "title": "The sub schema path",
+          "type": "string"
+        },
+        "root": {
+          "examples": [
+            "tool.tombi",
+            "items[0].name"
+          ],
+          "minLength": 1,
+          "title": "The accessors to apply the sub schema",
+          "type": "string"
+        },
+        "strict": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoolDefaultTrue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "If `additionalProperties` is not specified in the JSON Schema,\nthe strict mode treats it as `additionalProperties: false`,\nwhich is different from the JSON Schema specification.\nThis setting takes precedence over the matching root schema setting.\nIf omitted, the matching root schema or global `schema.strict` setting is used.",
+          "title": "Enable strict schema validation"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "include"
+      ],
+      "title": "The schema for the sub value",
+      "type": "object",
+      "x-tombi-table-keys-order": "schema"
+    },
+    "TableKeysOrder": {
+      "enum": [
+        "ascending",
+        "descending",
+        "schema",
+        "version-sort"
+      ],
+      "type": "string"
     },
     "TomlVersion": {
       "oneOf": [
@@ -355,6 +874,14 @@
       ],
       "description": "The formatter will try to keep lines within this width when specified.\nIf omitted, there is no line-width limit.",
       "title": "The maximum line width"
+    },
+    "schemas": {
+      "default": [],
+      "description": "Tombi's `[[schemas]]`, with camelCase keys (ex. `tomlVersion`): the\nschemas of the files they include, ahead of the ones built into Tombi.\nA schema can give its files a TOML version, ex. `v1.0.0` for\n`Cargo.toml`, which Cargo reads as TOML 1.0. Remote schemas aren't\nfetched, so only what an entry says itself applies to its files.",
+      "items": {
+        "$ref": "#/$defs/SchemaItem"
+      },
+      "type": "array"
     },
     "stringQuoteStyle": {
       "anyOf": [
