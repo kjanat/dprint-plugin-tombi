@@ -1,6 +1,6 @@
 [package]
 name        = "dprint-plugin-tombi"
-version     = "0.1.0"
+version     = "0.1.1"
 edition     = "2024"
 description = "A sandboxed dprint plugin for formatting TOML with Tombi"
 readme      = "README.md"

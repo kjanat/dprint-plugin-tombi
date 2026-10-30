@@ -288,3 +288,102 @@ fn the_schema_names_the_options_of_schemas_like_the_configuration() {
         }
     }
 }
+
+/// The plugin's properties with the Tombi configuration file a dprint that
+/// passes plugins one passes, as it does: its path and parsed content.
+fn with_config_file(mut properties: Value, path: &str, content: &Value) -> Value {
+    properties["$configFile"] = json!({ "path": path, "content": content.to_string() });
+    properties
+}
+
+#[test]
+fn a_tombi_configuration_file_dprint_passes_applies() {
+    let global = GlobalConfiguration {
+        line_width: Some(160),
+        ..Default::default()
+    };
+    let content = json!({
+        "toml-version": "v1.0.0",
+        "format": { "rules": { "line-width": 140, "indent-width": 4, "key-value-equals-sign-alignment": true } },
+        "lint": { "rules": { "key-empty": "warn" } },
+        "schemas": [{ "path": "https://www.schemastore.org/cargo.json", "include": ["Cargo.toml"], "lint": { "rules": { "deprecated": "off" } } }],
+    });
+    let resolved = resolve(
+        with_config_file(json!({ "indentWidth": 2 }), "tombi.toml", &content),
+        &global,
+    );
+    assert_eq!(resolved.diagnostics, Vec::<ConfigurationDiagnostic>::new());
+    let value = serde_json::to_value(&resolved.config).unwrap();
+    // the file's over dprint's global configuration
+    assert_eq!(value["lineWidth"], 140);
+    // the plugin's own properties over the file's
+    assert_eq!(value["indentWidth"], 2);
+    assert_eq!(value["keyValueEqualsSignAlignment"], true);
+    assert_eq!(value["tomlVersion"], "v1.0.0");
+    assert_eq!(value["schemas"].as_array().unwrap().len(), 1);
+
+    // the plugin's own schemas and version over the file's
+    let resolved = resolve(
+        with_config_file(
+            json!({ "tomlVersion": "v1.1.0", "schemas": [] }),
+            "tombi.toml",
+            &json!({ "toml-version": "v1.0.0", "schemas": [{ "path": "a.json", "include": ["a.toml"] }] }),
+        ),
+        &GlobalConfiguration::default(),
+    );
+    assert_eq!(resolved.diagnostics, Vec::<ConfigurationDiagnostic>::new());
+    let value = serde_json::to_value(&resolved.config).unwrap();
+    assert_eq!(value["tomlVersion"], "v1.1.0");
+    assert_eq!(value["schemas"], json!([]));
+}
+
+#[test]
+fn what_is_wrong_in_a_tombi_configuration_file_names_it() {
+    let resolved = resolve(
+        with_config_file(
+            json!({}),
+            "pyproject.toml",
+            &json!({ "toml-version": "v9", "format": { "rules": { "line-width": "wide" } }, "schemas": [{ "include": ["a.toml"] }] }),
+        ),
+        &GlobalConfiguration::default(),
+    );
+    let names = resolved
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.property_name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        [
+            "pyproject.toml: toml-version",
+            "pyproject.toml: schemas",
+            "pyproject.toml: format.rules.line-width",
+        ]
+    );
+}
+
+#[test]
+fn a_config_file_property_says_dprint_has_to_pass_it() {
+    // a dprint that passes plugins a configuration file of their own never
+    // passes the property on
+    let resolved = resolve(
+        json!({ "configFile": "tombi.toml" }),
+        &GlobalConfiguration::default(),
+    );
+    assert_eq!(resolved.diagnostics.len(), 1);
+    assert_eq!(resolved.diagnostics[0].property_name, "configFile");
+    assert!(resolved.diagnostics[0].message.contains("kjanat/dprint"));
+}
+
+#[test]
+fn looks_for_tombis_configuration_files_in_tombis_order() {
+    assert_eq!(
+        dprint_plugin_tombi::CONFIG_FILES,
+        [
+            ".tombi.toml",
+            "tombi.toml",
+            "pyproject.toml#tool.tombi",
+            ".config/tombi.toml"
+        ]
+    );
+}
