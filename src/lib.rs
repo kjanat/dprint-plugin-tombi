@@ -25,5 +25,5 @@ mod wasm_plugin {
     use crate::{Configuration, TombiPluginHandler};
     use dprint_core::{generate_plugin_code, plugins::SyncPluginHandler};
 
-    generate_plugin_code!(TombiPluginHandler, TombiPluginHandler);
+    generate_plugin_code!(TombiPluginHandler, TombiPluginHandler::new());
 }

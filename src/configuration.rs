@@ -3,7 +3,7 @@ use dprint_core::configuration::{
 };
 use serde::{Serialize, Serializer};
 use serde_json::{Map, Value, json};
-use tombi_config::{TomlVersion, format::FormatRules};
+use tombi_config::{SchemaItem, TomlVersion, format::FormatRules};
 
 const TOML_VERSION_ALIASES: [(&str, &str); 2] = [("1.0.0", "v1.0.0"), ("1.1.0", "v1.1.0")];
 
@@ -19,6 +19,13 @@ pub struct Configuration {
     #[serde(flatten, serialize_with = "serialize_rules")]
     #[cfg_attr(feature = "schema", schemars(with = "FormatRules"))]
     pub rules: FormatRules,
+    /// Tombi's `[[schemas]]`, with camelCase keys (ex. `tomlVersion`): the
+    /// schemas of the files they include, ahead of the ones built into Tombi.
+    /// A schema can give its files a TOML version, ex. `v1.0.0` for
+    /// `Cargo.toml`, which Cargo reads as TOML 1.0. Remote schemas aren't
+    /// fetched, so only what an entry says itself applies to its files.
+    #[cfg_attr(feature = "schema", schemars(default))]
+    pub schemas: Vec<SchemaItem>,
 }
 
 fn camel_case(key: &str) -> String {
@@ -60,6 +67,7 @@ pub fn resolve_config(
 ) -> (Configuration, Vec<ConfigurationDiagnostic>) {
     let mut diagnostics = Vec::new();
     let toml_version = resolve_version(&mut config, &mut diagnostics);
+    let schemas = resolve_schemas(&mut config, &mut diagnostics);
     let inherited = inherited_rules(global);
     // These Option fields serialize as null. Discovering their names from the
     // upstream type avoids a second, inevitably stale list of supported rules.
@@ -95,6 +103,7 @@ pub fn resolve_config(
             // cross-field deserialization constraints in the pinned type.
             rules: serde_json::from_value(Value::Object(rules))
                 .expect("individually validated Tombi rules must deserialize together"),
+            schemas,
         },
         diagnostics,
     )
@@ -120,6 +129,51 @@ fn inherited_rules(global: &GlobalConfiguration) -> Map<String, Value> {
     rules
 }
 
+/// The `[[schemas]]` of the configuration, from camelCase keys to Tombi's
+/// kebab-case ones.
+fn resolve_schemas(
+    config: &mut ConfigKeyMap,
+    diagnostics: &mut Vec<ConfigurationDiagnostic>,
+) -> Vec<SchemaItem> {
+    let Some(value) = config.shift_remove("schemas") else {
+        return Vec::new();
+    };
+    serde_json::from_value(kebab_case_keys(json!(value))).unwrap_or_else(|error| {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: "schemas".into(),
+            message: error.to_string(),
+        });
+        Vec::new()
+    })
+}
+
+/// The value with the keys of its objects, at any depth, in kebab case.
+fn kebab_case_keys(value: Value) -> Value {
+    match value {
+        Value::Object(properties) => Value::Object(
+            properties
+                .into_iter()
+                .map(|(key, value)| (kebab_case(&key), kebab_case_keys(value)))
+                .collect(),
+        ),
+        Value::Array(values) => Value::Array(values.into_iter().map(kebab_case_keys).collect()),
+        value => value,
+    }
+}
+
+fn kebab_case(key: &str) -> String {
+    let mut result = String::with_capacity(key.len() + 4);
+    for character in key.chars() {
+        if character.is_ascii_uppercase() {
+            result.push('-');
+            result.push(character.to_ascii_lowercase());
+        } else {
+            result.push(character);
+        }
+    }
+    result
+}
+
 fn resolve_version(
     config: &mut ConfigKeyMap,
     diagnostics: &mut Vec<ConfigurationDiagnostic>,
@@ -142,6 +196,56 @@ fn resolve_version(
         });
         TomlVersion::default()
     })
+}
+
+/// Names the properties of the definitions `schemas` refers to, at any depth,
+/// in camelCase, as `resolve_schemas` reads them (ex. `tomlVersion` for
+/// Tombi's `toml-version`). Only `schemas` refers to definitions with
+/// properties; the formatting rules are top-level properties.
+#[cfg(feature = "schema")]
+fn camel_case_schema_definitions(schema: &mut Value) {
+    fn references(value: &Value, found: &mut Vec<String>) {
+        match value {
+            Value::Object(properties) => {
+                if let Some(Value::String(reference)) = properties.get("$ref")
+                    && let Some(name) = reference.strip_prefix("#/$defs/")
+                {
+                    found.push(name.to_string());
+                }
+                properties
+                    .values()
+                    .for_each(|value| references(value, found));
+            }
+            Value::Array(values) => values.iter().for_each(|value| references(value, found)),
+            _ => {}
+        }
+    }
+
+    let mut pending = Vec::new();
+    references(&schema["properties"]["schemas"], &mut pending);
+    let mut renamed = std::collections::BTreeSet::new();
+    while let Some(name) = pending.pop() {
+        if !renamed.insert(name.clone()) {
+            continue;
+        }
+        let Some(definition) = schema["$defs"].get_mut(&name) else {
+            continue;
+        };
+        references(definition, &mut pending);
+        if let Some(Value::Object(properties)) = definition.get_mut("properties") {
+            *properties = std::mem::take(properties)
+                .into_iter()
+                .map(|(key, value)| (camel_case(&key), value))
+                .collect();
+        }
+        if let Some(Value::Array(required)) = definition.get_mut("required") {
+            for name in required.iter_mut() {
+                if let Value::String(key) = name {
+                    *key = camel_case(key);
+                }
+            }
+        }
+    }
 }
 
 /// Generate the schema from the same upstream Rust types used for validation.
@@ -178,6 +282,7 @@ pub fn configuration_schema() -> anyhow::Result<Value> {
         .as_object_mut()
         .ok_or_else(|| anyhow::anyhow!("schema is not an object"))?
         .remove("required");
+    camel_case_schema_definitions(&mut schema);
     schema["$id"] = json!(crate::SCHEMA_URL);
     schema["title"] = json!("dprint-plugin-tombi Configuration");
     schema["additionalProperties"] = json!(false);
