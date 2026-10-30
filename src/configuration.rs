@@ -198,6 +198,56 @@ fn resolve_version(
     })
 }
 
+/// Names the properties of the definitions `schemas` refers to, at any depth,
+/// in camelCase, as `resolve_schemas` reads them (ex. `tomlVersion` for
+/// Tombi's `toml-version`). Only `schemas` refers to definitions with
+/// properties; the formatting rules are top-level properties.
+#[cfg(feature = "schema")]
+fn camel_case_schema_definitions(schema: &mut Value) {
+    fn references(value: &Value, found: &mut Vec<String>) {
+        match value {
+            Value::Object(properties) => {
+                if let Some(Value::String(reference)) = properties.get("$ref")
+                    && let Some(name) = reference.strip_prefix("#/$defs/")
+                {
+                    found.push(name.to_string());
+                }
+                properties
+                    .values()
+                    .for_each(|value| references(value, found));
+            }
+            Value::Array(values) => values.iter().for_each(|value| references(value, found)),
+            _ => {}
+        }
+    }
+
+    let mut pending = Vec::new();
+    references(&schema["properties"]["schemas"], &mut pending);
+    let mut renamed = std::collections::BTreeSet::new();
+    while let Some(name) = pending.pop() {
+        if !renamed.insert(name.clone()) {
+            continue;
+        }
+        let Some(definition) = schema["$defs"].get_mut(&name) else {
+            continue;
+        };
+        references(definition, &mut pending);
+        if let Some(Value::Object(properties)) = definition.get_mut("properties") {
+            *properties = std::mem::take(properties)
+                .into_iter()
+                .map(|(key, value)| (camel_case(&key), value))
+                .collect();
+        }
+        if let Some(Value::Array(required)) = definition.get_mut("required") {
+            for name in required.iter_mut() {
+                if let Value::String(key) = name {
+                    *key = camel_case(key);
+                }
+            }
+        }
+    }
+}
+
 /// Generate the schema from the same upstream Rust types used for validation.
 ///
 /// # Errors
@@ -232,6 +282,7 @@ pub fn configuration_schema() -> anyhow::Result<Value> {
         .as_object_mut()
         .ok_or_else(|| anyhow::anyhow!("schema is not an object"))?
         .remove("required");
+    camel_case_schema_definitions(&mut schema);
     schema["$id"] = json!(crate::SCHEMA_URL);
     schema["title"] = json!("dprint-plugin-tombi Configuration");
     schema["additionalProperties"] = json!(false);

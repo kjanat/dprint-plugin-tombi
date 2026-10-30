@@ -269,3 +269,22 @@ fn schemas_with_unknown_properties_are_diagnosed() {
     assert_eq!(config.diagnostics.len(), 1);
     assert_eq!(config.diagnostics[0].property_name, "schemas");
 }
+
+#[cfg(feature = "schema")]
+#[test]
+fn the_schema_names_the_options_of_schemas_like_the_configuration() {
+    let schema = dprint_plugin_tombi::configuration_schema().unwrap();
+    let root = schema["$defs"]["RootSchema"]["properties"]
+        .as_object()
+        .unwrap();
+    assert!(root.contains_key("tomlVersion"), "{root:?}");
+    // and nested options, ex. a schema's format rules (`tableKeysOrder`)
+    for (name, definition) in schema["$defs"].as_object().unwrap() {
+        if let Some(properties) = definition["properties"].as_object() {
+            assert!(
+                properties.keys().all(|key| !key.contains('-')),
+                "{name}: {properties:?}"
+            );
+        }
+    }
+}

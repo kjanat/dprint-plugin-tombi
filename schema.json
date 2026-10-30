@@ -213,7 +213,7 @@
           "description": "If `additionalProperties` is not specified in the JSON Schema,\nthe strict mode treats it as `additionalProperties: false`,\nwhich is different from the JSON Schema specification.\nIf omitted, the global `schema.strict` setting is used.",
           "title": "Enable strict schema validation"
         },
-        "toml-version": {
+        "tomlVersion": {
           "anyOf": [
             {
               "$ref": "#/$defs/TomlVersion"
@@ -274,7 +274,7 @@
     "SchemaFormatRules": {
       "additionalProperties": false,
       "properties": {
-        "array-values-order": {
+        "arrayValuesOrder": {
           "anyOf": [
             {
               "$ref": "#/$defs/SchemaArrayValuesOrderRule"
@@ -285,7 +285,7 @@
           ],
           "title": "Whether schema-defined array values ordering is enabled"
         },
-        "table-keys-order": {
+        "tableKeysOrder": {
           "anyOf": [
             {
               "$ref": "#/$defs/SchemaTableKeysOrderRule"
@@ -384,7 +384,7 @@
     "SchemaOverrideFormatRules": {
       "additionalProperties": false,
       "properties": {
-        "array-values-order": {
+        "arrayValuesOrder": {
           "anyOf": [
             {
               "$ref": "#/$defs/SchemaOverrideArrayValuesOrderRule"
@@ -395,7 +395,7 @@
           ],
           "title": "Override array values ordering for matched roots"
         },
-        "table-keys-order": {
+        "tableKeysOrder": {
           "anyOf": [
             {
               "$ref": "#/$defs/SchemaOverrideTableKeysOrderRule"
