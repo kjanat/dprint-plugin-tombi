@@ -39,7 +39,9 @@ jobs:
         run: cargo wasm --locked
       - name: Install pinned dprint CLI
         uses: kjanat/dprint-check@v3
-        with: { install-only: true, dprint-version: 0.57.4 }
+        # upstream dprint, which users run the plugin with; the action defaults
+        # to the kjanat/dprint fork, whose releases are named 0.60.1-kjanat
+        with: { install-only: true, repository: dprint/dprint, dprint-version: 0.57.4 }
       - name: Execute Wasm and audit imports
         run: node scripts/wasm-smoke.mjs
       - name: Stage the verified artifact
