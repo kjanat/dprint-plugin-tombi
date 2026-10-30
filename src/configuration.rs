@@ -7,6 +7,82 @@ use tombi_config::{SchemaItem, TomlVersion, format::FormatRules};
 
 const TOML_VERSION_ALIASES: [(&str, &str); 2] = [("1.0.0", "v1.0.0"), ("1.1.0", "v1.1.0")];
 
+/// The configuration files of Tombi's own a dprint that passes plugins one
+/// (`$configFile`) looks for, in Tombi's order: the first that exists is
+/// used, a `pyproject.toml` only when it has a `[tool.tombi]`.
+pub const CONFIG_FILES: [&str; 4] = [
+    ".tombi.toml",
+    "tombi.toml",
+    "pyproject.toml#tool.tombi",
+    ".config/tombi.toml",
+];
+/// The property dprint names the file to pass in, which a dprint that
+/// passes one never passes on.
+const CONFIG_FILE_PROPERTY: &str = "configFile";
+/// The property dprint passes the file in: its `path` and parsed `content`,
+/// as a JSON string.
+const CONFIG_FILE_CONTENT_PROPERTY: &str = "$configFile";
+
+/// What applies of the Tombi configuration file dprint passed (ex.
+/// `tombi.toml`): its TOML version, formatting rules and schemas, which the
+/// plugin's own properties override.
+#[derive(Default)]
+struct TombiFile {
+    path: String,
+    toml_version: Option<Value>,
+    rules: Map<String, Value>,
+    schemas: Option<Value>,
+}
+
+impl TombiFile {
+    fn take(config: &mut ConfigKeyMap, diagnostics: &mut Vec<ConfigurationDiagnostic>) -> Self {
+        if config.shift_remove(CONFIG_FILE_PROPERTY).is_some() {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: CONFIG_FILE_PROPERTY.into(),
+                message: "This dprint doesn't pass plugins a configuration file of their own; \
+                          configFile needs one that does (kjanat/dprint). Set the plugin's own \
+                          properties instead."
+                    .into(),
+            });
+        }
+        let Some(value) = config.shift_remove(CONFIG_FILE_CONTENT_PROPERTY) else {
+            return Self::default();
+        };
+        let value = json!(value);
+        let path = value["path"]
+            .as_str()
+            .unwrap_or("the configuration file")
+            .to_string();
+        let content = match value["content"].as_str().map(serde_json::from_str::<Value>) {
+            Some(Ok(content)) => content,
+            Some(Err(error)) => {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
+                    message: format!("{path}: {error}"),
+                });
+                return Self::default();
+            }
+            None => {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
+                    message: format!("{path}: dprint passed no content"),
+                });
+                return Self::default();
+            }
+        };
+        Self {
+            toml_version: content.get("toml-version").cloned(),
+            rules: content
+                .pointer("/format/rules")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default(),
+            schemas: content.get("schemas").cloned(),
+            path,
+        }
+    }
+}
+
 /// Validated Tombi options. Unset rules retain upstream defaults.
 #[derive(Clone, Debug, Default, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -66,8 +142,9 @@ pub fn resolve_config(
     global: &GlobalConfiguration,
 ) -> (Configuration, Vec<ConfigurationDiagnostic>) {
     let mut diagnostics = Vec::new();
-    let toml_version = resolve_version(&mut config, &mut diagnostics);
-    let schemas = resolve_schemas(&mut config, &mut diagnostics);
+    let file = TombiFile::take(&mut config, &mut diagnostics);
+    let toml_version = resolve_version(&mut config, &file, &mut diagnostics);
+    let schemas = resolve_schemas(&mut config, &file, &mut diagnostics);
     let inherited = inherited_rules(global);
     // These Option fields serialize as null. Discovering their names from the
     // upstream type avoids a second, inevitably stale list of supported rules.
@@ -79,18 +156,28 @@ pub fn resolve_config(
     let mut rules = Map::new();
     for upstream_key in defaults.keys() {
         let key = camel_case(upstream_key);
-        let value = config.shift_remove(&key).map_or_else(
-            || inherited.get(upstream_key).cloned(),
-            |value| Some(json!(value)),
-        );
-        let Some(value) = value else { continue };
+        // the plugin's own property, then Tombi's configuration file, then
+        // dprint's global configuration
+        let (value, property_name) = match config.shift_remove(&key) {
+            Some(value) => (json!(value), key),
+            None => match file.rules.get(upstream_key) {
+                Some(value) => (
+                    value.clone(),
+                    format!("{}: format.rules.{upstream_key}", file.path),
+                ),
+                None => match inherited.get(upstream_key) {
+                    Some(value) => (value.clone(), key),
+                    None => continue,
+                },
+            },
+        };
         let candidate = Value::Object(Map::from_iter([(upstream_key.clone(), value.clone())]));
         match serde_json::from_value::<FormatRules>(candidate) {
             Ok(_) => {
                 rules.insert(upstream_key.clone(), value);
             }
             Err(error) => diagnostics.push(ConfigurationDiagnostic {
-                property_name: key,
+                property_name,
                 message: error.to_string(),
             }),
         }
@@ -131,16 +218,22 @@ fn inherited_rules(global: &GlobalConfiguration) -> Map<String, Value> {
 
 /// The `[[schemas]]` of the configuration, from camelCase keys to Tombi's
 /// kebab-case ones.
+/// Or the configuration file's, which has Tombi's keys already.
 fn resolve_schemas(
     config: &mut ConfigKeyMap,
+    file: &TombiFile,
     diagnostics: &mut Vec<ConfigurationDiagnostic>,
 ) -> Vec<SchemaItem> {
-    let Some(value) = config.shift_remove("schemas") else {
-        return Vec::new();
+    let (value, property_name) = match config.shift_remove("schemas") {
+        Some(value) => (kebab_case_keys(json!(value)), "schemas".to_string()),
+        None => match &file.schemas {
+            Some(value) => (value.clone(), format!("{}: schemas", file.path)),
+            None => return Vec::new(),
+        },
     };
-    serde_json::from_value(kebab_case_keys(json!(value))).unwrap_or_else(|error| {
+    serde_json::from_value(value).unwrap_or_else(|error| {
         diagnostics.push(ConfigurationDiagnostic {
-            property_name: "schemas".into(),
+            property_name,
             message: error.to_string(),
         });
         Vec::new()
@@ -176,12 +269,16 @@ fn kebab_case(key: &str) -> String {
 
 fn resolve_version(
     config: &mut ConfigKeyMap,
+    file: &TombiFile,
     diagnostics: &mut Vec<ConfigurationDiagnostic>,
 ) -> TomlVersion {
-    let Some(value) = config.shift_remove("tomlVersion") else {
-        return TomlVersion::default();
+    let (mut value, property_name) = match config.shift_remove("tomlVersion") {
+        Some(value) => (json!(value), "tomlVersion".to_string()),
+        None => match &file.toml_version {
+            Some(value) => (value.clone(), format!("{}: toml-version", file.path)),
+            None => return TomlVersion::default(),
+        },
     };
-    let mut value = json!(value);
     // Preserve the unprefixed spellings accepted by the original scaffold.
     if let Some((_, canonical)) = TOML_VERSION_ALIASES
         .iter()
@@ -191,7 +288,7 @@ fn resolve_version(
     }
     serde_json::from_value(value).unwrap_or_else(|error| {
         diagnostics.push(ConfigurationDiagnostic {
-            property_name: "tomlVersion".into(),
+            property_name,
             message: error.to_string(),
         });
         TomlVersion::default()

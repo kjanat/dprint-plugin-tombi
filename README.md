@@ -46,6 +46,31 @@ resets an optional rule to Tombi's default, including removing an inherited
 line-width limit. Values outside Tombi's supported range are diagnosed, never
 truncated.
 
+### Tombi's configuration file
+
+With [kjanat/dprint](https://github.com/kjanat/dprint) 0.60.5 or later, the
+plugin uses Tombi's own configuration file, so `tombi format`, Tombi's language
+server and dprint format alike. The first of these next to the dprint
+configuration file is used, in Tombi's order: `.tombi.toml`, `tombi.toml`,
+`pyproject.toml` (with a `[tool.tombi]`), `.config/tombi.toml`. Its
+`toml-version`, `format.rules` and `[[schemas]]` apply; the plugin's own
+properties take precedence over them, and they over dprint's globals.
+
+`configFile` names another file, or the part of one, or turns it off:
+
+```jsonc
+{
+  "toml": {
+    "configFile": "configs/tombi.toml", // or "pyproject.toml#tool.tombi", or false
+  },
+}
+```
+
+Another dprint passes the plugin no file: configure it with its own properties
+there. `configFile` is diagnosed, rather than ignored.
+
+### Per file
+
 Per-file `overrides` and additive/negated `associations` are handled by dprint.
 For example:
 
