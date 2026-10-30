@@ -1,17 +1,119 @@
 name: Release
-# a tag push, or a dispatch on a tag from auto-release.yml
-on: { push: { tags: ["[0-9]+.[0-9]+.[0-9]+"] }, workflow_dispatch: null }
+
+# A pushed tag is released as it is. A push to master that updates Tombi (the
+# revision of the tombi-* dependencies in Cargo.toml) is released as the next
+# patch version: the first release is the version in Cargo.toml. Only its tag
+# is pushed, on a commit that bumps the version on top of master, as the
+# master ruleset requires CI for every push and GitHub Actions can't bypass
+# the ruleset of a personal repository.
+on:
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+    branches: [master]
+    paths: [Cargo.toml]
 permissions: { contents: read }
+concurrency: { group: release, cancel-in-progress: false }
 jobs:
-  verify: { uses: "$/.github/workflows/ci.yml" }
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: { contents: write } # push the tag of a Tombi update
+    outputs: { tag: "${{ steps.tag.outputs.tag }}" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - name: The tag to release
+        id: tag
+        shell: python
+        run: |
+          import os
+          import re
+          import subprocess
+          import tomllib
+
+
+          def git(*args):
+              return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
+
+
+          def output(tag):
+              with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+                  file.write(f"tag={tag}\n")
+
+
+          def tombi_revisions(revision):
+              manifest = tomllib.loads(git("show", f"{revision}:Cargo.toml"))
+              return {
+                  name: dependency.get("rev")
+                  for name, dependency in manifest.get("dependencies", {}).items()
+                  if name.startswith("tombi-") and isinstance(dependency, dict)
+              }
+
+
+          if os.environ["GITHUB_REF_TYPE"] == "tag":
+              output(os.environ["GITHUB_REF_NAME"])
+              raise SystemExit(0)
+
+          before, after = tombi_revisions("HEAD^1"), tombi_revisions("HEAD")
+          if before == after:
+              print("Tombi isn't updated, so there's nothing to release")
+              output("")
+              raise SystemExit(0)
+          print(f"Tombi updated: {before} -> {after}")
+
+          with open("Cargo.toml", "rb") as manifest:
+              current = tomllib.load(manifest)["package"]["version"]
+          tags = [tag for tag in git("tag", "--list").split() if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", tag)]
+          if tags:
+              major, minor, patch = max(tuple(int(part) for part in tag.split(".")) for tag in tags)
+              version = f"{major}.{minor}.{patch + 1}"
+          else:
+              version = current
+
+
+          def bump(path, pattern):
+              with open(path, encoding="utf-8", newline="") as file:
+                  text = file.read()
+              text, count = re.subn(
+                  pattern + re.escape(current) + r'(")',
+                  lambda match: match.group(1) + version + match.group(2),
+                  text,
+                  count=1,
+                  flags=re.MULTILINE,
+              )
+              if count != 1:
+                  raise SystemExit(f"No version to bump in {path}")
+              with open(path, "w", encoding="utf-8", newline="") as file:
+                  file.write(text)
+
+
+          if version != current:
+              # only the version, keeping the manifest's alignment
+              bump("Cargo.toml", r'^(version\s*=\s*")')
+              bump("Cargo.lock", r'(name = "dprint-plugin-tombi"\nversion = ")')
+              git("switch", "--create", f"release/{version}")
+              git(
+                  "-c", "user.name=github-actions[bot]",
+                  "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+                  "commit", "--all", "--message", version,
+              )
+          git("tag", version)
+          git("push", "origin", f"refs/tags/{version}")
+          output(version)
+  verify:
+    needs: plan
+    if: needs.plan.outputs.tag != ''
+    uses: "$/.github/workflows/ci.yml"
+    with: { ref: "${{ needs.plan.outputs.tag }}" }
   release:
-    needs: verify
+    needs: [plan, verify]
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false }
+        with: { persist-credentials: false, ref: "${{ needs.plan.outputs.tag }}" }
       - name: Validate bare semver and package version
+        env: { TAG: "${{ needs.plan.outputs.tag }}" }
         shell: python
         run: |
           import os
@@ -20,13 +122,13 @@ jobs:
 
           with open("Cargo.toml", "rb") as manifest:
               version = tomllib.load(manifest)["package"]["version"]
-          tag = os.environ["GITHUB_REF_NAME"]
+          tag = os.environ["TAG"]
           if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", tag) or tag != version:
               raise SystemExit(f"Tag {tag!r} does not match package version {version!r}")
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with: { name: plugin }
       - name: Publish the tested artifact without replacing existing releases
-        env: { GH_TOKEN: "${{ github.token }}" }
+        env: { GH_TOKEN: "${{ github.token }}", TAG: "${{ needs.plan.outputs.tag }}" }
         run: |
           cat > release-notes.md <<'EOF'
           ## Tombi formatter for dprint
@@ -43,6 +145,6 @@ jobs:
           Or download `plugin.wasm` and reference its local path in your dprint config.
           See the README for sandbox limitations and configuration.
           EOF
-          gh release create "$GITHUB_REF_NAME" plugin.wasm schema.json \
-            --verify-tag --title "$GITHUB_REF_NAME" \
+          gh release create "$TAG" plugin.wasm schema.json \
+            --verify-tag --title "$TAG" \
             --notes-file release-notes.md --generate-notes

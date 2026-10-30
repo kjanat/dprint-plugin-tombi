@@ -10,11 +10,11 @@
   },
   "packageRules": [
     {
-      "description": "Merge non-major updates once CI passes; a merged update to the plugin is released by auto-release.yml. Renovate merges itself, as master has no required checks for GitHub's auto-merge to wait for.",
+      "description": "Merge non-major updates with GitHub's auto-merge, which waits for the CI checks the master ruleset requires.",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": false
+      "platformAutomerge": true
     },
     {
       "description": "Require dashboard approval before opening major upgrade PRs.",
@@ -22,7 +22,7 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Tombi comes from a branch of the kjanat/tombi fork with a portability delta, which is rebased onto each upstream release (see UPSTREAM.md and tombi-upstream.yml), not updated to the fork's latest commit.",
+      "description": "Tombi comes from a branch of the kjanat/tombi fork with a portability delta, which is rebased onto each upstream release (see UPSTREAM.md and tombi-upstream.yml; a pull request that updates it is released by release.yml), not updated to the fork's latest commit.",
       "matchManagers": ["cargo"],
       "matchPackageNames": ["tombi-*"],
       "enabled": false
