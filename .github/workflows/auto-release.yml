@@ -1,13 +1,18 @@
 name: Auto release
 
-# A dependency update Renovate merged that changes the plugin is released as
-# the next patch version. The bump is committed and tagged here, and the
-# release workflow is dispatched for the tag: a tag pushed with GITHUB_TOKEN
-# doesn't trigger workflows, a dispatch does.
+# A merged pull request that updates Tombi (the revision of the tombi-*
+# dependencies in Cargo.toml) is released as the next patch version. Other
+# updates aren't released on their own.
+#
+# Only the tag is pushed, on a commit that bumps the version on top of
+# master: the master ruleset requires CI for every push, and GitHub Actions
+# can't bypass a ruleset of a personal repository. The release workflow is
+# dispatched for the tag, as a tag pushed with GITHUB_TOKEN doesn't trigger
+# workflows.
 on:
   push:
     branches: [master]
-    paths: [Cargo.toml, Cargo.lock, rust-toolchain.toml, "src/**"]
+    paths: [Cargo.toml]
 
 permissions: { contents: read }
 
@@ -18,22 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write # push the version bump and its tag
+      contents: write # push the release tag
       actions: write # dispatch the release workflow
-      pull-requests: read # find the pull request the commit merged
     steps:
-      - name: Only for pull requests Renovate opened
-        id: author
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
-          author=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[0].user.login // ""')
-          echo "Merged pull request by: ${author:-none}"
-          echo "renovate=$([[ "${author}" == "renovate[bot]" ]] && echo true || echo false)" >> "${GITHUB_OUTPUT}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.author.outputs.renovate == 'true'
-      - name: Bump the patch version, commit and tag it
-        if: steps.author.outputs.renovate == 'true'
-        id: bump
+        with: { fetch-depth: 0 }
+      - name: Tag a Tombi update as the next version
+        id: tag
         shell: python
         run: |
           import os
@@ -42,11 +38,42 @@ jobs:
           import tomllib
 
 
-          def git(*args, check=True):
-              return subprocess.run(["git", *args], check=check).returncode == 0
+          def git(*args):
+              return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
 
 
-          def bump(path, pattern, current, version):
+          def tombi_revisions(revision):
+              manifest = tomllib.loads(git("show", f"{revision}:Cargo.toml"))
+              return {
+                  name: dependency.get("rev")
+                  for name, dependency in manifest.get("dependencies", {}).items()
+                  if name.startswith("tombi-") and isinstance(dependency, dict)
+              }
+
+
+          def output(version):
+              with open(os.environ["GITHUB_OUTPUT"], "a") as file:
+                  file.write(f"version={version}\n")
+
+
+          before, after = tombi_revisions("HEAD^1"), tombi_revisions("HEAD")
+          if before == after:
+              print("Tombi isn't updated, so there's nothing to release")
+              output("")
+              raise SystemExit(0)
+          print(f"Tombi updated: {before} -> {after}")
+
+          with open("Cargo.toml", "rb") as manifest:
+              current = tomllib.load(manifest)["package"]["version"]
+          tags = [tag for tag in git("tag", "--list").split() if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", tag)]
+          if tags:
+              major, minor, patch = max(tuple(int(part) for part in tag.split(".")) for tag in tags)
+              version = f"{major}.{minor}.{patch + 1}"
+          else:
+              version = current
+
+
+          def bump(path, pattern):
               with open(path, encoding="utf-8", newline="") as file:
                   text = file.read()
               text, count = re.subn(
@@ -62,33 +89,20 @@ jobs:
                   file.write(text)
 
 
-          git("config", "user.name", "github-actions[bot]")
-          git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
-          # The bump goes on master as it is when pushed, not on the commit that
-          # started the run: a pull request merged meanwhile rejects the push, as
-          # a branch only moves forward, and then master is fetched again.
-          for attempt in range(1, 6):
-              git("fetch", "--quiet", "origin", "master")
-              git("reset", "--quiet", "--hard", "origin/master")
-              with open("Cargo.toml", "rb") as manifest:
-                  current = tomllib.load(manifest)["package"]["version"]
-              major, minor, patch = (int(part) for part in current.split("."))
-              version = f"{major}.{minor}.{patch + 1}"
+          if version != current:
               # only the version, keeping the manifest's alignment
-              bump("Cargo.toml", r'^(version\s*=\s*")', current, version)
-              bump("Cargo.lock", r'(name = "dprint-plugin-tombi"\nversion = ")', current, version)
-              git("commit", "--quiet", "--all", "--message", version)
-              git("tag", version)
-              # the bump and its tag reach origin together or not at all
-              if git("push", "--atomic", "origin", "HEAD:master", version, check=False):
-                  break
-              print(f"master moved during attempt {attempt}, trying again")
-              git("tag", "--delete", version)
-          else:
-              raise SystemExit("master kept moving; no release")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              output.write(f"version={version}\n")
+              bump("Cargo.toml", r'^(version\s*=\s*")')
+              bump("Cargo.lock", r'(name = "dprint-plugin-tombi"\nversion = ")')
+              git("switch", "--create", f"release/{version}")
+              git(
+                  "-c", "user.name=github-actions[bot]",
+                  "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
+                  "commit", "--all", "--message", version,
+              )
+          git("tag", version)
+          git("push", "origin", f"refs/tags/{version}")
+          output(version)
       - name: Release the tag
-        if: steps.author.outputs.renovate == 'true'
-        env: { GH_TOKEN: "${{ github.token }}", VERSION: "${{ steps.bump.outputs.version }}" }
+        if: steps.tag.outputs.version != ''
+        env: { GH_TOKEN: "${{ github.token }}", VERSION: "${{ steps.tag.outputs.version }}" }
         run: gh workflow run release.yml --repo "${GITHUB_REPOSITORY}" --ref "${VERSION}"
