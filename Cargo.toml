@@ -28,7 +28,7 @@ serde_json         = "1"
 # Upstream Tombi v1.9.8 with a narrow headless-build portability delta.
 # Formatter/parser algorithms are unchanged; see UPSTREAM.md for the exact diff.
 tombi-config       = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b", features = ["serde"] }
-tombi-formatter    = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b" }
+tombi-formatter    = { git = "https://github.com/kjanat/tombi", rev = "3586e23f5a523729e7e7210bf2b2e10d3e0729d8" }
 tombi-schema-store = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b", default-features = false }
 tombi-uri          = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b" }
 
