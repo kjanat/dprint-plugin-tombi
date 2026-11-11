@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "properties": {
+    "files": { "oneOf": [{ "type": "object" }, { "type": "null" }] },
+    "ignores": { "oneOf": [{ "type": "array", "items": { "type": "object" } }, { "type": "null" }] },
+    "local-actions": { "oneOf": [{ "type": "object" }, { "type": "null" }] }
+  }
+}

@@ -3,11 +3,13 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const plugin = resolve(process.argv[2] ?? "target/wasm32-unknown-unknown/wasm-release/dprint_plugin_tombi.wasm");
 const directory = mkdtempSync(join(tmpdir(), "tombi-schema-parity-"));
 const tombi = process.env.TOMBI_BIN ?? "tombi";
 const kprint = process.env.KPRINT_BIN ?? "kprint";
+const fixtures = fileURLToPath(new URL("../tests/fixtures/actionlint/", import.meta.url));
 const source = `[files]
 excludes = []
 
@@ -116,9 +118,17 @@ try {
   );
   assert.ok(nested.indexOf("[[ignores]]") < nested.indexOf("[local-actions]"), nested);
 
+  mkdirSync(join(directory, ".github"));
+  cpSync(join(fixtures, "actionlint.schema.json"), join(directory, "actionlint.schema.json"));
+  const regression = compare(
+    "original actionlint table-order regression",
+    ".github/actionlint.toml",
+    readFileSync(join(fixtures, "actionlint.toml"), "utf8"),
+  );
+  assert.ok(regression.indexOf("[[ignores]]") < regression.indexOf("[local-actions]"), regression);
+
   if (process.env.ACTIONLINT_PROJECT) {
     const project = process.env.ACTIONLINT_PROJECT;
-    mkdirSync(join(directory, ".github"));
     cpSync(join(project, "schemas"), join(directory, "schemas"), { recursive: true });
     cpSync(join(project, "actionlint.schema.json"), join(directory, "actionlint.schema.json"));
     cpSync(join(project, "tombi.toml"), join(directory, "tombi.toml"));
@@ -127,25 +137,6 @@ try {
       ".github/actionlint.toml",
       readFileSync(join(project, ".github/actionlint.toml"), "utf8"),
     );
-    const regression = compare(
-      "original actionlint table-order regression",
-      ".github/actionlint.toml",
-      `#:schema ../actionlint.schema.json
-
-[files]
-excludes = ["**/testdata/**"]
-
-[local-actions]
-"./.published-action-test" = "./applications/github-action/tests/testdata/published-action"
-
-[[ignores]]
-rule = "missing-local-action"
-file = ".github/workflows/ci.yml"
-uses = "./.actionlint-action-test"
-reason = "Release bundle built during CI."
-`,
-    );
-    assert.ok(regression.indexOf("[[ignores]]") < regression.indexOf("[local-actions]"), regression);
   }
 } finally {
   rmSync(directory, { recursive: true, force: true });
