@@ -325,11 +325,13 @@ name = "dprint-plugin-tombi"
 version = "0.1.1"
 dependencies = [
  "anyhow",
+ "bytes",
  "dprint-core",
  "itertools",
  "schemars",
  "serde",
  "serde_json",
+ "serde_tombi",
  "tombi-config",
  "tombi-formatter",
  "tombi-fs",
@@ -576,9 +578,9 @@ dependencies = [
 
 [[package]]
 name = "icu_collections"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa68d21081c4a05d5a901a1c62add574c77048b6a1c67be3b50ce0b60d4ca513"
+checksum = "fe090a42a0d3140fed8c63263ed1fecc02422cb2f4bfe55cd8de2de1b8e105dd"
 dependencies = [
  "displaydoc",
  "potential_utf",
@@ -590,22 +592,43 @@ dependencies = [
 
 [[package]]
 name = "icu_locale_core"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb"
+checksum = "25d29b57c17c6528d0dc4c2141cfa2d08200465acb537a3909c8b9b8a4a984c0"
 dependencies = [
  "displaydoc",
  "litemap",
+ "serde",
  "tinystr",
  "writeable",
  "zerovec",
 ]
 
 [[package]]
-name = "icu_normalizer"
-version = "2.3.0"
+name = "icu_locale_fallback"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f9cf5f235641ed274641dd81c3f28d870e276763d0797aeeab72317b1c646f"
+checksum = "406e9ae5b95d8aa37db6293405931b766a6172d1848daee22d70eb44aa78a43c"
+dependencies = [
+ "icu_locale_core",
+ "icu_locale_fallback_data",
+ "icu_provider",
+ "potential_utf",
+ "tinystr",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_locale_fallback_data"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3632ebbd0c5c3637ba1a40bdf8288f2cb9d2268e73441a69d5fc73d7cfbaa87c"
+
+[[package]]
+name = "icu_normalizer"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "404a3b8c486f205c87fe7f23ab6894d84a4ad76d6e4671ae1981ba7def87c599"
 dependencies = [
  "icu_collections",
  "icu_normalizer_data",
@@ -617,15 +640,15 @@ dependencies = [
 
 [[package]]
 name = "icu_normalizer_data"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1563da1ed3e0b3bf3d74c9b85917ac9c56464d2f57242270c09c9e752f8021a0"
+checksum = "20f0088bfb7441f7a37fa0c9e20cb1e9cba1cac6b9ce8cd2a6dc44294f8e8cbc"
 
 [[package]]
 name = "icu_properties"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e7ca276ad3145661a65914e6daf131ca5120cd3dcee8f8f3214b8875184a148"
+checksum = "2ea83d991c56158f7cf898bf86436c1dfe7c07ee82fe88951f2695c9f37a379f"
 dependencies = [
  "displaydoc",
  "icu_collections",
@@ -638,24 +661,49 @@ dependencies = [
 
 [[package]]
 name = "icu_properties_data"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e590f038c1464a96894fd6d10127e90a8be4509f56ff7ecef851b15cee0b7caa"
+checksum = "b98f29af82d02b163fe50161388350e743bb3107cc8e8c2f7314cb505faddfcf"
 
 [[package]]
 name = "icu_provider"
-version = "2.3.1"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d27bbb9d3abbefac45d55f647c9de1d44aafcd1186eb91879afef17c396c3e73"
+checksum = "413099315636c588ee8f011190b329b971a09a8fae9d157e01dcae8379468514"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
+ "serde",
+ "stable_deref_trait",
  "writeable",
  "yoke",
  "zerofrom",
  "zerotrie",
  "zerovec",
 ]
+
+[[package]]
+name = "icu_segmenter"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61b195dc605f81aa181bec9b3bd14e26cc71b903e4644f6af578ca9772c7a710"
+dependencies = [
+ "icu_collections",
+ "icu_locale_fallback",
+ "icu_provider",
+ "icu_segmenter_data",
+ "potential_utf",
+ "smallvec",
+ "utf8_iter",
+ "zerotrie",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_segmenter_data"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "913a7d294ad056474749152107309fdee3ec17d2482d1ab70fdc61a81c64b9a3"
 
 [[package]]
 name = "idna"
@@ -852,7 +900,18 @@ version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d83eb9bc6d8e5cf568e7a1101d60ee05e81ed50ea106026f3d18deeb046d7661"
 dependencies = [
+ "serde_core",
+ "writeable",
  "zerovec",
+]
+
+[[package]]
+name = "proc-macro-crate"
+version = "3.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
+dependencies = [
+ "toml_edit",
 ]
 
 [[package]]
@@ -1056,6 +1115,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_tombi"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
+dependencies = [
+ "dirs",
+ "itertools",
+ "log",
+ "serde",
+ "serde_tombi_macros",
+ "textwrap",
+ "thiserror",
+ "tokio",
+ "tombi-ast-syntax",
+ "tombi-config",
+ "tombi-date-time",
+ "tombi-document",
+ "tombi-document-tree-syntax",
+ "tombi-formatter",
+ "tombi-fs",
+ "tombi-hashmap",
+ "tombi-parser",
+ "tombi-schema-store",
+ "tombi-toml-text",
+ "tombi-toml-version",
+ "tombi-uri",
+ "tombi-validator",
+ "typed-builder",
+]
+
+[[package]]
+name = "serde_tombi_macros"
+version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "sha2"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1093,6 +1193,12 @@ name = "smallvec"
 version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
+
+[[package]]
+name = "smawk"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8e2fb0f499abb4d162f2bedad68f5ef91a1682b5a03596ddb67efd37768d100"
 
 [[package]]
 name = "stable_deref_trait"
@@ -1140,6 +1246,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "textwrap"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ecfad6c3abc80a577f2b91c1e412ee57e7a060d430b553c1b0c940974ebcd49"
+dependencies = [
+ "icu_segmenter",
+ "smawk",
+ "unicode-width",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1161,11 +1278,12 @@ dependencies = [
 
 [[package]]
 name = "tinystr"
-version = "0.8.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643"
+checksum = "abc840c238154d58f9e86b2792261edfde565a17696e1cda1a449de27979801a"
 dependencies = [
  "displaydoc",
+ "serde_core",
  "zerovec",
 ]
 
@@ -1186,7 +1304,7 @@ dependencies = [
 [[package]]
 name = "tombi-accessor"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "itertools",
  "tombi-hashmap",
@@ -1198,7 +1316,7 @@ dependencies = [
 [[package]]
 name = "tombi-ast"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "tombi-date-time",
  "tombi-text",
@@ -1208,7 +1326,7 @@ dependencies = [
 [[package]]
 name = "tombi-ast-syntax"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "itertools",
  "thiserror",
@@ -1223,7 +1341,7 @@ dependencies = [
 [[package]]
 name = "tombi-cache"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "dirs",
  "log",
@@ -1235,7 +1353,7 @@ dependencies = [
 [[package]]
 name = "tombi-comment-directive"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "serde",
  "thiserror",
@@ -1250,7 +1368,7 @@ dependencies = [
 [[package]]
 name = "tombi-comment-directive-serde"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "serde",
  "tombi-ast-syntax",
@@ -1263,7 +1381,7 @@ dependencies = [
 [[package]]
 name = "tombi-comment-directive-store"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "tokio",
  "tombi-schema-store",
@@ -1273,7 +1391,7 @@ dependencies = [
 [[package]]
 name = "tombi-config"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "schemars",
  "serde",
@@ -1288,7 +1406,7 @@ dependencies = [
 [[package]]
 name = "tombi-date-time"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "chrono",
  "serde",
@@ -1298,7 +1416,7 @@ dependencies = [
 [[package]]
 name = "tombi-diagnostic"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "nu-ansi-term",
  "serde",
@@ -1308,7 +1426,7 @@ dependencies = [
 [[package]]
 name = "tombi-document"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "itertools",
  "serde",
@@ -1325,7 +1443,7 @@ dependencies = [
 [[package]]
 name = "tombi-document-tree"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "tombi-accessor",
  "tombi-date-time",
@@ -1335,7 +1453,7 @@ dependencies = [
 [[package]]
 name = "tombi-document-tree-syntax"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "chrono",
  "itertools",
@@ -1354,7 +1472,7 @@ dependencies = [
 [[package]]
 name = "tombi-formatter"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "itertools",
  "log",
@@ -1381,7 +1499,7 @@ dependencies = [
 [[package]]
 name = "tombi-fs"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "dirs",
  "glob",
@@ -1391,7 +1509,7 @@ dependencies = [
 [[package]]
 name = "tombi-future"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "futures",
  "tokio",
@@ -1400,7 +1518,7 @@ dependencies = [
 [[package]]
 name = "tombi-hashmap"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "ahash",
  "indexmap",
@@ -1409,7 +1527,7 @@ dependencies = [
 [[package]]
 name = "tombi-json"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "itertools",
  "serde",
@@ -1424,7 +1542,7 @@ dependencies = [
 [[package]]
 name = "tombi-json-lexer"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "memchr",
  "tombi-json-syntax",
@@ -1434,12 +1552,12 @@ dependencies = [
 [[package]]
 name = "tombi-json-syntax"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 
 [[package]]
 name = "tombi-json-value"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "serde",
  "tombi-hashmap",
@@ -1448,7 +1566,7 @@ dependencies = [
 [[package]]
 name = "tombi-lexer"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "memchr",
  "tombi-ast-syntax",
@@ -1459,7 +1577,7 @@ dependencies = [
 [[package]]
 name = "tombi-parser"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "drop_bomb",
  "itertools",
@@ -1474,7 +1592,7 @@ dependencies = [
 [[package]]
 name = "tombi-regex"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "fancy-regex",
 ]
@@ -1482,7 +1600,7 @@ dependencies = [
 [[package]]
 name = "tombi-schema-store"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "bytes",
  "futures",
@@ -1515,7 +1633,7 @@ dependencies = [
 [[package]]
 name = "tombi-schema-type"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "schemars",
  "serde",
@@ -1524,7 +1642,7 @@ dependencies = [
 [[package]]
 name = "tombi-severity-level"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "schemars",
  "serde",
@@ -1533,7 +1651,7 @@ dependencies = [
 [[package]]
 name = "tombi-text"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "log",
  "memchr",
@@ -1545,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "tombi-toml-text"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "thiserror",
  "tombi-toml-version",
@@ -1554,7 +1672,7 @@ dependencies = [
 [[package]]
 name = "tombi-toml-version"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "clap",
  "schemars",
@@ -1564,7 +1682,7 @@ dependencies = [
 [[package]]
 name = "tombi-uri"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "percent-encoding",
  "serde",
@@ -1574,7 +1692,7 @@ dependencies = [
 [[package]]
 name = "tombi-validator"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "addr",
  "email_address",
@@ -1605,7 +1723,7 @@ dependencies = [
 [[package]]
 name = "tombi-version-sort"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "itertools",
 ]
@@ -1613,10 +1731,60 @@ dependencies = [
 [[package]]
 name = "tombi-x-keyword"
 version = "0.0.0-dev"
-source = "git+https://github.com/kjanat/tombi?rev=6e52da2e17602c2d70f6b18f1ca68f029d20f6d2#6e52da2e17602c2d70f6b18f1ca68f029d20f6d2"
+source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "1.1.3+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "173f25c883cd2176a2d8212155638c0a60d484a9d84546d270866f40f56b6e49"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.25.19+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd43688c4858d7264ae1cf9a9f874a67c3feb74a883b1cd7bebd6a4ea8307218"
+dependencies = [
+ "indexmap",
+ "toml_datetime",
+ "toml_parser",
+ "winnow",
+]
+
+[[package]]
+name = "toml_parser"
+version = "1.1.5+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
+dependencies = [
+ "winnow",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fef81aec2ca29576f9f6ae8755108640d0a86dd3161b2e8bca6cfa554e98f77d"
+dependencies = [
+ "typed-builder-macro",
+]
+
+[[package]]
+name = "typed-builder-macro"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ecb9ecf7799210407c14a8cfdfe0173365780968dc57973ed082211958e0b18"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -1809,6 +1977,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "winnow"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1822,9 +1999,9 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "yoke"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "709fe23a0424b6a435d82152b1bd3fdfb0833487d5fa90d05d42762a9891fef5"
+checksum = "417ef3fcf6c300b7dbd25c85531a746931c02ad536f3cf4786ed1e88223340b3"
 dependencies = [
  "stable_deref_trait",
  "yoke-derive",
@@ -1833,9 +2010,9 @@ dependencies = [
 
 [[package]]
 name = "yoke-derive"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33811428bee40dbceb6d545e95754741d17a6aef9a4849f0fd62e2ba4f412a78"
+checksum = "ec8ebde2db3681e8c9980cc27822030e68752690ddfa9473e739aeb4dbde6d71"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1893,14 +2070,16 @@ dependencies = [
  "displaydoc",
  "yoke",
  "zerofrom",
+ "zerovec",
 ]
 
 [[package]]
 name = "zerovec"
-version = "0.11.8"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8"
+checksum = "f58a2799cfe9a1670c7ea8edbd52ef8edb93cb37a7f83bf31ba9e35d9dae6a40"
 dependencies = [
+ "serde",
  "yoke",
  "zerofrom",
  "zerovec-derive",
@@ -1908,9 +2087,9 @@ dependencies = [
 
 [[package]]
 name = "zerovec-derive"
-version = "0.11.6"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da"
+checksum = "c3743ddbf47738d929cd1ae2e199d40d0162979dfe31aef8ae646d2bf00bf97a"
 dependencies = [
  "proc-macro2",
  "quote",

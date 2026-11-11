@@ -18,11 +18,12 @@ validates upstream `FormatRules` through serde, exposing keys in camelCase.
 Unset rules retain upstream defaults; plugin keys override inherited globals.
 Invalid/unknown configuration produces diagnostics, not silent coercions.
 
-`src/handler.rs` supplies an offline schema store with disk caching disabled and
-polls the formatter once. A pending future is an error, never a busy loop. Keep
-the pending-future regression and actual WASM execution gate. kprint reads the
-configuration file and local schemas, then passes their contents to the plugin.
-The plugin cannot fetch remote schemas or expose a separate lint API.
+Kprint reads configuration files, follows the references declared by the plugin,
+and downloads remote files through its HTTP cache. The plugin receives their
+contents and uses Tombi's loader to apply `extends`. Its HTTP client reads only
+these supplied files. Wasm builds use Tombi's in-memory filesystem and have no
+disk cache. `src/handler.rs` polls the formatter once and reports an error if it
+requests asynchronous work. Test the compiled Wasm plugin as well as native code.
 
 `cargo wasm --locked` produces the distributable artifact directly. There is no
 Binaryen finalization, export rewriting, or Node build dependency. The Node
@@ -40,6 +41,7 @@ cargo run --locked --bin generate-schema --features schema
 cargo wasm --locked
 node scripts/wasm-smoke.mjs
 node scripts/schema-parity.mjs
+node scripts/remote-config-parity.mjs
 ```
 
 Run strict Clippy on all native targets/features and the WASM library. Fix
@@ -50,6 +52,8 @@ Native tests alone are not evidence of WASM compatibility.
 Run `schema-parity.mjs` with Tombi 1.11.1 and a kprint build that supports
 schema files. `KPRINT_BIN` and `TOMBI_BIN` select those executables. This test
 compares their output using the same configuration and schemas.
+The remote comparison also checks relative URLs, redirects, inheritance,
+download caching and invalid references.
 
 ## Generated files and release
 

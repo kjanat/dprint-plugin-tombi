@@ -68,6 +68,40 @@ properties take precedence over them, and they over dprint's globals.
 Another dprint passes the plugin no file: configure it with its own properties
 there. `configFile` is diagnosed, rather than ignored.
 
+### Remote configuration and inheritance
+
+With kprint's remote configuration support, `configFile` also accepts a URL:
+
+```json
+{
+  "toml": {
+    "configFile": "https://example.com/formatting/tombi.toml"
+  }
+}
+```
+
+That file can use Tombi's `extends`:
+
+```toml
+extends = ["../shared/tombi.toml"]
+
+[format.rules]
+line-width = 100
+```
+
+Kprint downloads the files through its HTTP cache. The plugin applies Tombi's
+inheritance rules, then applies any options set directly under `toml` in the
+kprint configuration. Relative URLs resolve beside the file that declares them.
+After a redirect, they resolve beside the destination URL.
+
+Local configuration files can extend local or remote files. Remote files can
+extend HTTP(S) URLs. Missing files, inheritance cycles and invalid `extends`
+settings stop formatting with an error.
+
+This support is on the development branches in
+[kprint #61](https://github.com/kjanat/kprint/pull/61) and
+[this plugin's #21](https://github.com/kjanat/dprint-plugin-tombi/pull/21).
+
 ### Per file
 
 Per-file `overrides` and additive/negated `associations` are handled by dprint.
@@ -102,15 +136,16 @@ post-link rewriting, Binaryen, a Node build pipeline, or fake host functions.
 Node is used only by the integration test harness; it is not needed to build or
 run the plugin.
 
-kprint supplies local schemas listed in `[[schemas]]`, including files
-referenced by `$ref`. Relative paths are resolved beside `tombi.toml`. These
-files must be inside the directory containing the kprint configuration. Changes
-to a schema invalidate the cached plugin configuration, including in the
-language server.
+Kprint supplies schemas listed in `[[schemas]]`, including files referenced by
+`$ref`. It reads local files and downloads HTTP(S) URLs. Relative paths resolve
+beside their configuration file. For a local `.config/tombi.toml`, Tombi uses
+the directory above `.config`. Local files must be inside the directory containing
+the kprint configuration. Changes to a local schema invalidate the cached plugin
+configuration, including in the language server.
 
 This requires kprint's `get_config_schema_paths` support. Older hosts report a
 configuration error for local schemas. The plugin also uses the schemas built
-into Tombi. It cannot download other schemas or catalogs.
+into Tombi. Custom schema catalogs are not loaded.
 
 The `schema` settings in `tombi.toml` apply too. For example,
 `schema.format.rules.table-keys-order.enabled = false` turns off schema-based
@@ -137,11 +172,9 @@ Formatting is whole-document only; range requests return an explicit error.
 Invalid UTF-8 is rejected instead of being replaced with replacement characters.
 Already-formatted input returns dprint's no-change result.
 
-Tombi's formatter API is async, but the offline path must finish in one poll.
-The adapter checks that contract and returns an error on `Pending`; it never
-spins, blocks a thread, or invents a JavaScript event loop. CI tests both the
-guard and the actual WASM artifact so an upstream change cannot silently break
-it.
+Kprint supplies the files before formatting starts. The plugin reports an error
+if Tombi requests asynchronous work while formatting. Tests exercise this error
+and run the compiled Wasm plugin through kprint.
 
 ## Development
 
@@ -165,6 +198,7 @@ local schemas:
 
 ```sh
 node scripts/schema-parity.mjs
+node scripts/remote-config-parity.mjs
 ```
 
 This needs a kprint build with schema-file support. Set `KPRINT_BIN` and

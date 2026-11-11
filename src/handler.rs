@@ -16,7 +16,7 @@ use tombi_schema_store::{Options, SchemaStore};
 
 use crate::{Configuration, SCHEMA_URL, UPDATE_URL, configuration};
 
-/// Formats TOML with Tombi's built-in schemas and local schemas supplied by kprint.
+/// Formats TOML with Tombi's built-in schemas and schemas supplied by kprint.
 #[derive(Default)]
 pub struct TombiPluginHandler {
     store: Option<(Vec<SchemaItem>, configuration::SchemaContext, SchemaStore)>,
@@ -48,17 +48,22 @@ impl TombiPluginHandler {
 fn schema_store(settings: &Configuration) -> Result<SchemaStore, FormatError> {
     tombi_fs::clear();
     for (path, text) in &settings.schema_context.files {
-        tombi_fs::set_file(formatter_path(std::path::Path::new(path)), text);
+        if !path.starts_with("https://") && !path.starts_with("http://") {
+            tombi_fs::set_file(formatter_path(std::path::Path::new(path)), text);
+        }
     }
     let schema = settings.schema_context.options.clone().unwrap_or_default();
-    let store = SchemaStore::new_with_options(Options {
-        offline: Some(true),
-        cache: None,
-        strict: schema.strict,
-        format: schema.format.clone(),
-        lint: schema.lint.clone(),
-        ..Options::default()
-    });
+    let store = SchemaStore::new_with_options_and_http_client(
+        Options {
+            offline: Some(false),
+            cache: None,
+            strict: schema.strict,
+            format: schema.format.clone(),
+            lint: schema.lint.clone(),
+            ..Options::default()
+        },
+        crate::resources::client(settings.schema_context.files.clone()),
+    );
     // only the built-in catalog: the default also lists JSON Schema Store's,
     // which would have to be fetched
     let mut schema =
@@ -67,7 +72,7 @@ fn schema_store(settings: &Configuration) -> Result<SchemaStore, FormatError> {
         serde_json::json!({ "paths": [tombi_config::TOMBI_SCHEMASTORE_CATALOG_URL] });
     let config: tombi_config::Config = serde_json::from_value(serde_json::json!({
         "schema": schema,
-        "schemas": with_built_in_copies(&settings.schemas)?,
+        "schemas": with_built_in_copies(&settings.schemas, &settings.schema_context.files)?,
     }))
     .map_err(|err| FormatError::new(format!("Configuring Tombi's built-in schemas: {err}")))?;
     let path = settings.schema_context.path.as_deref().map(formatter_path);
@@ -160,7 +165,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
     }
 }
 
-fn formatter_path(path: &std::path::Path) -> std::path::PathBuf {
+pub fn formatter_path(path: &std::path::Path) -> std::path::PathBuf {
     #[cfg(target_family = "wasm")]
     {
         let path = path.to_string_lossy().replace('\\', "/");
@@ -177,13 +182,17 @@ fn formatter_path(path: &std::path::Path) -> std::path::PathBuf {
 /// Store's `cargo.json`) taken from its built-in copy. The sandbox can't fetch
 /// it, and a schema that doesn't load doesn't apply what its entry says (ex.
 /// `toml-version`), while the CLI has it cached from an earlier run.
-fn with_built_in_copies(schemas: &[SchemaItem]) -> Result<serde_json::Value, FormatError> {
+fn with_built_in_copies(
+    schemas: &[SchemaItem],
+    files: &std::collections::BTreeMap<String, String>,
+) -> Result<serde_json::Value, FormatError> {
     let mut schemas = serde_json::to_value(schemas)
         .map_err(|err| FormatError::new(format!("Reading the configured schemas: {err}")))?;
     let entries = schemas.as_array_mut().into_iter().flatten();
     for path in entries.filter_map(|entry| entry.get_mut("path")) {
         let built_in = path
             .as_str()
+            .filter(|remote| !files.contains_key(*remote))
             .and_then(|remote| remote.strip_prefix("https://"))
             .map(|rest| format!("tombi://{rest}"))
             .filter(|built_in| {
@@ -201,7 +210,7 @@ fn with_built_in_copies(schemas: &[SchemaItem]) -> Result<serde_json::Value, For
 // With no HTTP backend, no disk cache and an uncontended per-request store,
 // this path must complete synchronously. Never spin or block a Wasm host if
 // an upstream change introduces a future that needs an external executor.
-fn ready<F: Future>(future: F) -> Result<F::Output, FormatError> {
+pub fn ready<F: Future>(future: F) -> Result<F::Output, FormatError> {
     let mut future = std::pin::pin!(future);
     match future
         .as_mut()

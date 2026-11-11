@@ -1,8 +1,9 @@
 //! A dprint Wasm adapter for the Rust engine underlying `tombi-wasm-lib`.
-//! The production plugin is offline and does not use JavaScript bindings.
+//! Kprint supplies configuration files and schemas before the plugin formats TOML.
 
 mod configuration;
 mod handler;
+mod resources;
 
 #[cfg(feature = "schema")]
 pub use configuration::configuration_schema;
@@ -27,14 +28,22 @@ mod wasm_plugin {
 
     generate_plugin_code!(TombiPluginHandler, TombiPluginHandler::new());
 
-    /// The configuration files of Tombi's own for a dprint that passes
-    /// plugins one (its `PluginInfo::config_files`, which dprint's
-    /// `PluginInfo` here can't have).
+    /// Tombi configuration filenames for kprint's automatic discovery.
     #[unsafe(no_mangle)]
     pub extern "C" fn get_config_files() -> usize {
         set_shared_bytes_str(
             serde_json::to_string(&crate::CONFIG_FILES).expect("a list of strings serializes"),
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_config_reference_paths() -> usize {
+        set_shared_bytes_str(String::from(r#"[["extends","*"]]"#))
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_config_relative_path_bases() -> usize {
+        set_shared_bytes_str(String::from(r#"{".config/tombi.toml":".."}"#))
     }
 
     #[unsafe(no_mangle)]
