@@ -74,6 +74,65 @@ fn disabled_schemas_do_not_require_host_file_access() {
 }
 
 #[test]
+fn disabled_schemas_ignore_malformed_redirected_resources() {
+    let result = resolve(
+        json!({"$configFile": {
+            "path": "tombi.toml",
+            "content": "{\"schema\":{\"enabled\":false}}",
+            "files": {"https://example.com/schema": "not JSON"},
+            "fileSources": {"https://example.com/schema": "https://example.com/schema.json"}
+        }}),
+        &GlobalConfiguration::default(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(
+        format(b"a=1\n", &result.config).unwrap(),
+        Some(b"a = 1\n".to_vec())
+    );
+}
+
+#[test]
+fn configuration_file_format_rules_are_validated_with_and_without_inheritance() {
+    for format in [
+        json!("invalid"),
+        json!({"rules": []}),
+        json!({"rules": {"unknown-rule": true}}),
+    ] {
+        for inherits in [false, true] {
+            let mut content = json!({"format": format, "unrelated-project-setting": true});
+            if inherits {
+                content["extends"] = json!(["base.toml"]);
+            }
+            let result = resolve(
+                json!({"$configFile": {
+                    "path": "tombi.toml",
+                    "absolutePath": "C:/project/tombi.toml",
+                    "source": "file:///C:/project/tombi.toml",
+                    "text": "[format.rules]\n",
+                    "content": content.to_string()
+                }}),
+                &GlobalConfiguration::default(),
+            );
+            assert_eq!(
+                result.diagnostics.len(),
+                1,
+                "{content}: {:?}",
+                result.diagnostics
+            );
+            assert_eq!(result.diagnostics[0].property_name, "tombi.toml: format");
+        }
+    }
+    let result = resolve(
+        json!({"$configFile": {
+            "path": "project.json",
+            "content": "{\"format\":{\"rules\":{\"line-width\":80}},\"unrelated-project-setting\":true}"
+        }}),
+        &GlobalConfiguration::default(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+}
+
+#[test]
 fn invalid_schema_options_in_tombi_config_are_diagnosed() {
     let result = resolve(
         json!({"$configFile": {"path": "tombi.toml", "content": "{\"schema\":{\"enabled\":\"yes\"}}"}}),

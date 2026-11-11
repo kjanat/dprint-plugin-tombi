@@ -69,6 +69,16 @@ impl TombiFile {
                 return Self::default();
             }
         };
+        if let Some(format) = content.get("format").filter(|format| !format.is_null())
+            && let Err(error) =
+                serde_json::from_value::<tombi_config::FormatOptions>(format.clone())
+        {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: format!("{path}: format"),
+                message: error.to_string(),
+            });
+            return Self::default();
+        }
         if value["text"].is_string()
             && (content.get("extends").is_some() || value["absolutePath"].is_null())
         {

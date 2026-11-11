@@ -47,6 +47,18 @@ const sortingSchema = JSON.stringify({
   additionalProperties: { type: "integer" },
   "x-tombi-table-keys-order": "ascending",
 });
+assert.equal(
+  formatInInstance({
+    $configFile: {
+      path: "tombi.toml",
+      content: JSON.stringify({ schema: { enabled: false } }),
+      files: { "https://example.com/schema": "not JSON" },
+      fileSources: { "https://example.com/schema": "https://example.com/schema.json" },
+    },
+  }, "a=1\n"),
+  "a = 1\n",
+  "Disabled schemas must not parse malformed redirected resources",
+);
 const inherited = {
   $configFile: {
     path: "pyproject.toml#tool.tombi",
