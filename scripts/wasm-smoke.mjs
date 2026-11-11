@@ -30,6 +30,19 @@ function send(text) {
 function receive(length) {
   return new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, wasm.get_shared_bytes_ptr(), length));
 }
+const configMetadata = {
+  get_config_files: [".tombi.toml", "tombi.toml", ".config/tombi.toml", "pyproject.toml#tool.tombi"],
+  get_config_reference_paths: [["extends", "*"]],
+  get_config_relative_path_bases: { ".config/tombi.toml": ".." },
+  get_config_schema_paths: [["schemas", "*", "path"]],
+  get_config_local_schemas_use_root: true,
+};
+for (const [name, expected] of Object.entries(configMetadata)) {
+  send("stale buffer contents".repeat(100));
+  assert.deepEqual(JSON.parse(receive(wasm[name]())), expected, `${name} must use the host's shared buffer`);
+}
+assert.equal(JSON.parse(receive(wasm.get_plugin_info())).configKey, "toml");
+console.log("WASM configuration discovery metadata passed.");
 function formatInInstance(settings, source) {
   registerConfig(1, settings);
   return formatRegistered(1, source);
