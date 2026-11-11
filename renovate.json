@@ -6,8 +6,22 @@
   "prHourlyLimit": 2,
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "schedule": ["before 6am every day"]
   },
+  "customManagers": [
+    {
+      "description": "Tombi version from the kjanat/tombi fork's dprint/vX.Y.Z-headless branches.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^Cargo\\.toml$/"],
+      "matchStrings": [
+        "(?<depName>[a-z_-]+)\\s*=\\s*\\{\\s*git\\s*=\\s*\"https://github\\.com/kjanat/tombi\",\\s*branch\\s*=\\s*\"dprint/v(?<currentValue>\\d+\\.\\d+\\.\\d+)-headless\""
+      ],
+      "datasourceTemplate": "git-refs",
+      "packageNameTemplate": "https://github.com/kjanat/tombi",
+      "versioningTemplate": "semver",
+      "extractVersionTemplate": "^dprint/v(?<version>\\d+\\.\\d+\\.\\d+)-headless$"
+    }
+  ],
   "packageRules": [
     {
       "description": "Merge non-major updates with GitHub's auto-merge, which waits for the CI checks the master ruleset requires.",
@@ -22,10 +36,11 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Tombi comes from a branch of the kjanat/tombi fork with a portability delta, which is rebased onto each upstream release (see UPSTREAM.md and tombi-upstream.yml; a pull request that updates it is released by release.yml), not updated to the fork's latest commit.",
-      "matchManagers": ["cargo"],
-      "matchPackageNames": ["tombi-*"],
-      "enabled": false
+      "description": "All Tombi crates in one PR, merged by hand: merging releases (release.yml).",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["https://github.com/kjanat/tombi"],
+      "groupName": "tombi",
+      "automerge": false
     }
   ]
 }

@@ -69,7 +69,12 @@ impl TombiFile {
                 return Self::default();
             }
         };
-        if value["text"].is_string()
+        let format_valid = content
+            .get("format")
+            .filter(|format| !format.is_null())
+            .is_none_or(|format| validate_file_format(format, &path, diagnostics));
+        if format_valid
+            && value["text"].is_string()
             && (content.get("extends").is_some() || value["absolutePath"].is_null())
         {
             match resolve_inheritance(&value, &content) {
@@ -122,6 +127,35 @@ impl TombiFile {
             path,
         }
     }
+}
+
+fn validate_file_format(
+    format: &Value,
+    path: &str,
+    diagnostics: &mut Vec<ConfigurationDiagnostic>,
+) -> bool {
+    if let Some(properties) = format.as_object() {
+        for key in properties.keys().filter(|key| key.as_str() != "rules") {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: format!("{path}: format.{key}"),
+                message: "Unknown formatter setting.".into(),
+            });
+        }
+        if let Some(rules) = properties.get("rules").filter(|rules| !rules.is_null())
+            && !rules.is_object()
+        {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: format!("{path}: format.rules"),
+                message: "Expected a table of formatting rules.".into(),
+            });
+        }
+    } else {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: format!("{path}: format"),
+            message: "Expected a table of formatter settings.".into(),
+        });
+    }
+    serde_json::from_value::<tombi_config::FormatOptions>(format.clone()).is_ok()
 }
 
 fn supplied_files(
@@ -385,6 +419,27 @@ pub fn resolve_config(
         unreachable!("Tombi rules are an object");
     };
     let mut rules = Map::new();
+    for key in file.rules.keys().filter(|key| !defaults.contains_key(*key)) {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: format!("{}: format.rules.{key}", file.path),
+            message: "Unknown formatting rule.".into(),
+        });
+    }
+    for (key, value) in file
+        .rules
+        .iter()
+        .filter(|(key, _)| defaults.contains_key(*key))
+    {
+        if config.contains_key(&camel_case(key)) {
+            let candidate = Value::Object(Map::from_iter([(key.clone(), value.clone())]));
+            if let Err(error) = serde_json::from_value::<FormatRules>(candidate) {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: format!("{}: format.rules.{key}", file.path),
+                    message: error.to_string(),
+                });
+            }
+        }
+    }
     for upstream_key in defaults.keys() {
         let key = camel_case(upstream_key);
         // the plugin's own property, then Tombi's configuration file, then

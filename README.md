@@ -210,8 +210,8 @@ and a second formatting pass.
 
 Commit `Cargo.lock` and the generated `schema.json`. The schema generator sorts
 objects recursively for stable output. CI rejects missing or stale generated
-files. When updating Tombi, update every Tombi revision together, regenerate the
-lockfile and schema, and rerun the native and WASM gates.
+files. All Tombi dependencies select the same fork branch. Update their locked
+commit together, regenerate the schema, and rerun the native and WASM checks.
 
 Releases use bare semver tags matching `Cargo.toml`, and publish the exact
 `plugin.wasm` and `schema.json` that passed CI. Published versions are
