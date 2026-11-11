@@ -1,15 +1,15 @@
 # Upstream engine and portability delta
 
 The formatter, parser, validator, configuration and date/time algorithms are
-Tombi v1.9.8, upstream commit `081bfcf088589ebd9d151e23010246bb5b40fea6`.
+Tombi v1.11.1, upstream commit `273ace37a1f7b86bc845271d91dfe285b0539e93`.
 
-The dependency uses commit `3bf590560c7196ad7251d3e15098f47472682e6b` in the
-existing `kjanat/tombi` fork, on branch `dprint/v1.9.8-headless`. That branch is
-based directly on the upstream release, not the old fork's development history.
-It carries the commits of `dprint/v1.5.5-headless` unchanged, and one more for
-v1.9.8.
+The dependency uses commit `6e52da2e17602c2d70f6b18f1ca68f029d20f6d2` in the
+existing `kjanat/tombi` fork, on branch `dprint/v1.11.1-headless`. That branch
+is based directly on the upstream release, not the old fork's development
+history. It applies the four portability commits from `dprint/v1.9.8-headless`
+to Tombi v1.11.1.
 
-[Review the complete eleven-file portability delta](https://github.com/kjanat/tombi/compare/081bfcf088589ebd9d151e23010246bb5b40fea6...3bf590560c7196ad7251d3e15098f47472682e6b).
+[Review the complete eleven-file portability delta](https://github.com/kjanat/tombi/compare/273ace37a1f7b86bc845271d91dfe285b0539e93...6e52da2e17602c2d70f6b18f1ca68f029d20f6d2).
 
 Only eleven upstream files differ:
 

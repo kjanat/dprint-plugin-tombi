@@ -29,6 +29,9 @@ const CONFIG_FILE_CONTENT_PROPERTY: &str = "$configFile";
 #[derive(Default)]
 struct TombiFile {
     path: String,
+    absolute_path: Option<std::path::PathBuf>,
+    files: std::collections::BTreeMap<String, String>,
+    schema: Option<tombi_config::SchemaOverviewOptions>,
     toml_version: Option<Value>,
     rules: Map<String, Value>,
     schemas: Option<Value>,
@@ -70,7 +73,34 @@ impl TombiFile {
                 return Self::default();
             }
         };
+        let files = value
+            .get("files")
+            .map_or_else(
+                || Ok(std::collections::BTreeMap::new()),
+                |files| serde_json::from_value(files.clone()),
+            )
+            .unwrap_or_else(|error| {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
+                    message: format!("{path}: invalid schema files: {error}"),
+                });
+                std::collections::BTreeMap::new()
+            });
+        let schema = content
+            .get("schema")
+            .map(|value| serde_json::from_value(value.clone()))
+            .transpose()
+            .unwrap_or_else(|error| {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: format!("{path}: schema"),
+                    message: error.to_string(),
+                });
+                None
+            });
         Self {
+            absolute_path: value["absolutePath"].as_str().map(std::path::PathBuf::from),
+            files,
+            schema,
             toml_version: content.get("toml-version").cloned(),
             rules: content
                 .pointer("/format/rules")
@@ -88,6 +118,8 @@ impl TombiFile {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct Configuration {
+    #[serde(skip)]
+    pub(crate) schema_context: SchemaContext,
     /// The TOML language version. Document directives may override it.
     #[cfg_attr(feature = "schema", schemars(default))]
     pub toml_version: TomlVersion,
@@ -95,13 +127,19 @@ pub struct Configuration {
     #[serde(flatten, serialize_with = "serialize_rules")]
     #[cfg_attr(feature = "schema", schemars(with = "FormatRules"))]
     pub rules: FormatRules,
-    /// Tombi's `[[schemas]]`, with camelCase keys (ex. `tomlVersion`): the
-    /// schemas of the files they include, ahead of the ones built into Tombi.
-    /// A schema can give its files a TOML version, ex. `v1.0.0` for
-    /// `Cargo.toml`, which Cargo reads as TOML 1.0. Remote schemas aren't
-    /// fetched, so only what an entry says itself applies to its files.
+    /// Tombi's `[[schemas]]`, with camelCase keys such as `tomlVersion`.
+    /// These associations take precedence over Tombi's built-in catalog.
+    /// kprint supplies local schema files. Remote URLs use a built-in copy
+    /// when Tombi includes one. The plugin cannot download other schemas.
     #[cfg_attr(feature = "schema", schemars(default))]
     pub schemas: Vec<SchemaItem>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SchemaContext {
+    pub path: Option<std::path::PathBuf>,
+    pub files: std::collections::BTreeMap<String, String>,
+    pub options: Option<tombi_config::SchemaOverviewOptions>,
 }
 
 fn camel_case(key: &str) -> String {
@@ -145,6 +183,21 @@ pub fn resolve_config(
     let file = TombiFile::take(&mut config, &mut diagnostics);
     let toml_version = resolve_version(&mut config, &file, &mut diagnostics);
     let schemas = resolve_schemas(&mut config, &file, &mut diagnostics);
+    if file.absolute_path.is_none()
+        && schemas.iter().any(|schema| {
+            schema
+                .path()
+                .parse::<tombi_uri::Uri>()
+                .map_or(true, |uri| uri.scheme() == "file")
+        })
+    {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: "schemas".into(),
+            message:
+                "Local schemas require a kprint version that supplies schema files to plugins."
+                    .into(),
+        });
+    }
     let inherited = inherited_rules(global);
     // These Option fields serialize as null. Discovering their names from the
     // upstream type avoids a second, inevitably stale list of supported rules.
@@ -185,6 +238,11 @@ pub fn resolve_config(
     diagnostics.extend(get_unknown_property_diagnostics(config));
     (
         Configuration {
+            schema_context: SchemaContext {
+                path: file.absolute_path,
+                files: file.files,
+                options: file.schema,
+            },
             toml_version,
             // Each field was deserialized independently above. There are no
             // cross-field deserialization constraints in the upstream type.

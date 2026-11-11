@@ -108,6 +108,32 @@ try {
   assert.equal(contents("tombi.toml"), multiLine);
   assert.equal(contents("Cargo.toml"), singleLine);
   run(["check"]);
+
+  rmSync(join(dir, "tombi.toml"));
+  rmSync(join(dir, "Cargo.toml"));
+  delete config.toml.schemas;
+  config.toml.$configFile = {
+    path: "tombi.toml",
+    absolutePath: join(dir, "tombi.toml"),
+    content: JSON.stringify({ schemas: [{ path: "schema.json", include: ["ordered.toml"] }] }),
+    files: {
+      [join(dir, "schema.json")]: JSON.stringify({
+        type: "object",
+        properties: {
+          first: { $ref: "fields.json" },
+          entries: { type: "array", items: { type: "object" } },
+          last: { type: "object" },
+        },
+        "x-tombi-table-keys-order": { properties: "schema" },
+      }),
+      [join(dir, "fields.json")]: JSON.stringify({ type: "object", "x-tombi-table-keys-order": "ascending" }),
+    },
+  };
+  writeConfig();
+  writeFileSync(join(dir, "ordered.toml"), "[last]\nx = 0\n\n[[entries]]\nx = 0\n\n[first]\nz = 1\na = 2\n");
+  run(["fmt"]);
+  assert.equal(contents("ordered.toml"), "[first]\na = 2\nz = 1\n\n[[entries]]\nx = 0\n\n[last]\nx = 0\n");
+  run(["check"]);
   console.log(
     "WASM imports, formatting, dates, directives, idempotence, associations, overrides, diagnostics, and schemas passed.",
   );

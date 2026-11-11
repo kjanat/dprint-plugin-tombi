@@ -36,4 +36,9 @@ mod wasm_plugin {
             serde_json::to_string(&crate::CONFIG_FILES).expect("a list of strings serializes"),
         )
     }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_config_schema_paths() -> usize {
+        set_shared_bytes_str(String::from(r#"[["schemas","*","path"]]"#))
+    }
 }

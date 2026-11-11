@@ -2,7 +2,7 @@
 
 A dprint TOML formatter using the same Rust formatting engine as
 [Tombi's `tombi-wasm-lib`](https://tombi-toml.github.io/tombi/docs/wasm/tombi-wasm-lib).
-The engine is Tombi **v1.9.8**. The plugin exposes dprint's WASM ABI; it does
+The engine is Tombi **v1.11.1**. The plugin exposes dprint's WASM ABI; it does
 not embed a JavaScript runtime or call a separate Tombi executable.
 
 ## Install
@@ -48,12 +48,11 @@ truncated.
 
 ### Tombi's configuration file
 
-With [kjanat/dprint](https://github.com/kjanat/dprint) 0.60.5 or later, the
-plugin uses Tombi's own configuration file, so `tombi format`, Tombi's language
-server and dprint format alike. The first of these next to the dprint
-configuration file is used, in Tombi's order: `.tombi.toml`, `tombi.toml`,
-`pyproject.toml` (with a `[tool.tombi]`), `.config/tombi.toml`. Its
-`toml-version`, `format.rules` and `[[schemas]]` apply; the plugin's own
+With [kprint](https://github.com/kjanat/kprint) 0.60.5 or later, the plugin
+reads formatting options from Tombi's configuration file. The first of these
+next to the dprint configuration file is used, in Tombi's order: `.tombi.toml`,
+`tombi.toml`, `pyproject.toml` (with a `[tool.tombi]`), `.config/tombi.toml`.
+Its `toml-version`, `format.rules` and `[[schemas]]` apply; the plugin's own
 properties take precedence over them, and they over dprint's globals.
 
 `configFile` names another file, or the part of one, or turns it off:
@@ -103,15 +102,19 @@ post-link rewriting, Binaryen, a Node build pipeline, or fake host functions.
 Node is used only by the integration test harness; it is not needed to build or
 run the plugin.
 
-The production plugin is intentionally sandboxed. It does not discover
-`tombi.toml` or `pyproject.toml`, read local JSON Schema files, fetch remote
-schemas/catalogs, or expose Tombi's separate lint API. It uses an offline,
-cache-disabled schema store with the schemas built into Tombi (its catalog, and
-the schemas for `Cargo.toml`, `pyproject.toml` and `tombi.toml`), made once per
-`schemas` configuration and kept. A schema can decide how a file formats, as in
-the CLI: `tombi.toml`'s says TOML v1.1.0, which keeps a multi-line inline table.
-Other schemas can't be fetched, so formatting that depends on them may differ
-from the CLI.
+kprint supplies local schemas listed in `[[schemas]]`, including files
+referenced by `$ref`. Relative paths are resolved beside `tombi.toml`. These
+files must be inside the directory containing the kprint configuration. Changes
+to a schema invalidate the cached plugin configuration, including in the
+language server.
+
+This requires kprint's `get_config_schema_paths` support. Older hosts report a
+configuration error for local schemas. The plugin also uses the schemas built
+into Tombi. It cannot download other schemas or catalogs.
+
+The `schema` settings in `tombi.toml` apply too. For example,
+`schema.format.rules.table-keys-order.enabled = false` turns off schema-based
+key sorting, as it does in `tombi format`.
 
 `schemas` takes Tombi's `[[schemas]]` with camelCase keys, ahead of the built-in
 ones. A remote schema Tombi has built in is used from its built-in copy, so an
@@ -156,6 +159,18 @@ The last command needs dprint on `PATH` (or `DPRINT_BIN` pointing to it). CI
 runs it with the latest kjanat/dprint and upstream dprint, and checks the
 compiled module's imports before running formatting, dates, directives,
 idempotence, diagnostics, associations and overrides through the CLI.
+
+Compare the built plugin with Tombi 1.11.1 using the same configuration and
+local schemas:
+
+```sh
+node scripts/schema-parity.mjs
+```
+
+This needs a kprint build with schema-file support. Set `KPRINT_BIN` and
+`TOMBI_BIN` to test specific executables. The comparison covers table order,
+arrays of tables, relative schema references, schema changes, disabled sorting
+and a second formatting pass.
 
 Commit `Cargo.lock` and the generated `schema.json`. The schema generator sorts
 objects recursively for stable output. CI rejects missing or stale generated

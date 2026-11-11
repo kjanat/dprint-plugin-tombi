@@ -877,7 +877,7 @@
     },
     "schemas": {
       "default": [],
-      "description": "Tombi's `[[schemas]]`, with camelCase keys (ex. `tomlVersion`): the\nschemas of the files they include, ahead of the ones built into Tombi.\nA schema can give its files a TOML version, ex. `v1.0.0` for\n`Cargo.toml`, which Cargo reads as TOML 1.0. Remote schemas aren't\nfetched, so only what an entry says itself applies to its files.",
+      "description": "Tombi's `[[schemas]]`, with camelCase keys such as `tomlVersion`.\nThese associations take precedence over Tombi's built-in catalog.\nkprint supplies local schema files. Remote URLs use a built-in copy\nwhen Tombi includes one. The plugin cannot download other schemas.",
       "items": {
         "$ref": "#/$defs/SchemaItem"
       },

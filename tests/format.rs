@@ -49,6 +49,31 @@ fn invalid_utf8_is_rejected_without_lossy_replacement() {
 }
 
 #[test]
+fn local_schemas_require_host_file_access() {
+    let result = resolve(
+        json!({"schemas": [{"path": "schema.json", "include": ["test.toml"]}]}),
+        &GlobalConfiguration::default(),
+    );
+    assert_eq!(result.diagnostics.len(), 1);
+    assert_eq!(result.diagnostics[0].property_name, "schemas");
+    assert!(
+        result.diagnostics[0]
+            .message
+            .contains("supplies schema files")
+    );
+}
+
+#[test]
+fn invalid_schema_options_in_tombi_config_are_diagnosed() {
+    let result = resolve(
+        json!({"$configFile": {"path": "tombi.toml", "content": "{\"schema\":{\"enabled\":\"yes\"}}"}}),
+        &GlobalConfiguration::default(),
+    );
+    assert_eq!(result.diagnostics.len(), 1);
+    assert_eq!(result.diagnostics[0].property_name, "tombi.toml: schema");
+}
+
+#[test]
 fn syntax_errors_are_not_silently_formatted() {
     let error = format(b"a = [", &Configuration::default()).unwrap_err();
     assert_ne!(error.to_string(), "");

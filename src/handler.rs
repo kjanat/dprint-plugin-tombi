@@ -16,51 +16,62 @@ use tombi_schema_store::{Options, SchemaStore};
 
 use crate::{Configuration, SCHEMA_URL, UPDATE_URL, configuration};
 
-/// The adapter between dprint and Tombi's formatter.
-///
-/// It formats with an offline schema store that knows the configured
-/// `schemas` and the schemas built into Tombi (ex. for `Cargo.toml`,
-/// `pyproject.toml` and `tombi.toml`), as the CLI does, and nothing it would
-/// have to fetch. A schema can decide how a file formats: `tombi.toml`'s says
-/// TOML v1.1.0, which keeps multi-line inline tables. A store is made for the
-/// first file with its `schemas` and kept, as it's the same for every file.
+/// Formats TOML with Tombi's built-in schemas and local schemas supplied by kprint.
 #[derive(Default)]
 pub struct TombiPluginHandler {
-    stores: Vec<(Vec<SchemaItem>, SchemaStore)>,
+    store: Option<(Vec<SchemaItem>, configuration::SchemaContext, SchemaStore)>,
 }
 
 impl TombiPluginHandler {
-    /// A handler without stores yet, which the plugin's static holds.
+    /// Creates a formatter with no cached schemas.
     #[must_use]
     pub const fn new() -> Self {
-        Self { stores: Vec::new() }
+        Self { store: None }
     }
 
-    fn store(&mut self, schemas: &[SchemaItem]) -> Result<&SchemaStore, FormatError> {
-        if let Some(index) = self.stores.iter().position(|(stored, _)| stored == schemas) {
-            return Ok(&self.stores[index].1);
+    fn store(&mut self, config: &Configuration) -> Result<&SchemaStore, FormatError> {
+        if !self.store.as_ref().is_some_and(|(schemas, context, _)| {
+            schemas == &config.schemas && context == &config.schema_context
+        }) {
+            self.store = None;
+            self.store = Some((
+                config.schemas.clone(),
+                config.schema_context.clone(),
+                schema_store(config)?,
+            ));
         }
-        self.stores.push((schemas.to_vec(), schema_store(schemas)?));
-        Ok(&self.stores[self.stores.len() - 1].1)
+        Ok(&self.store.as_ref().expect("schema store was initialized").2)
     }
 }
 
-/// An offline store with the schemas and Tombi's built-in catalog, which is
-/// part of the plugin, so loading it reads nothing from outside the sandbox.
-fn schema_store(schemas: &[SchemaItem]) -> Result<SchemaStore, FormatError> {
+/// Loads schemas into Tombi's in-memory filesystem before resolving references.
+fn schema_store(settings: &Configuration) -> Result<SchemaStore, FormatError> {
+    tombi_fs::clear();
+    for (path, text) in &settings.schema_context.files {
+        tombi_fs::set_file(formatter_path(std::path::Path::new(path)), text);
+    }
+    let schema = settings.schema_context.options.clone().unwrap_or_default();
     let store = SchemaStore::new_with_options(Options {
         offline: Some(true),
         cache: None,
+        strict: schema.strict,
+        format: schema.format.clone(),
+        lint: schema.lint.clone(),
         ..Options::default()
     });
     // only the built-in catalog: the default also lists JSON Schema Store's,
     // which would have to be fetched
+    let mut schema =
+        serde_json::to_value(schema).map_err(|err| FormatError::new(err.to_string()))?;
+    schema["catalog"] =
+        serde_json::json!({ "paths": [tombi_config::TOMBI_SCHEMASTORE_CATALOG_URL] });
     let config: tombi_config::Config = serde_json::from_value(serde_json::json!({
-        "schema": { "catalog": { "paths": [tombi_config::TOMBI_SCHEMASTORE_CATALOG_URL] } },
-        "schemas": with_built_in_copies(schemas)?,
+        "schema": schema,
+        "schemas": with_built_in_copies(&settings.schemas)?,
     }))
     .map_err(|err| FormatError::new(format!("Configuring Tombi's built-in schemas: {err}")))?;
-    ready(store.load_config(&config, None))?
+    let path = settings.schema_context.path.as_deref().map(formatter_path);
+    ready(store.load_config(&config, path.as_deref()))?
         .map_err(|err| FormatError::new(format!("Loading Tombi's built-in schemas: {err}")))?;
     Ok(store)
 }
@@ -124,11 +135,12 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
         let options = tombi_config::FormatOptions {
             rules: Some(request.config.rules.clone()),
         };
-        let store = self.store(&request.config.schemas)?;
+        let store = self.store(request.config)?;
+        let path = formatter_path(request.file_path);
         let formatter = Formatter::new(
             request.config.toml_version,
             &options,
-            Some(Either::Right(request.file_path)),
+            Some(Either::Right(&path)),
             store,
         );
         let output = ready(formatter.format(source))?.map_err(|diagnostics| {
@@ -146,6 +158,19 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
             Ok(Some(output.into_bytes()))
         }
     }
+}
+
+fn formatter_path(path: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(target_family = "wasm")]
+    {
+        let path = path.to_string_lossy().replace('\\', "/");
+        if path.as_bytes().get(1) == Some(&b':') {
+            return std::path::PathBuf::from(format!("/{path}"));
+        }
+        std::path::PathBuf::from(path)
+    }
+    #[cfg(not(target_family = "wasm"))]
+    path.to_path_buf()
 }
 
 /// The schemas, with a remote schema that Tombi has built in (ex. JSON Schema

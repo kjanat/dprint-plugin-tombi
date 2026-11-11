@@ -7,7 +7,7 @@ formatter engine as `tombi-wasm-lib`. The browser WASM ABI is not compatible
 with dprint. Do not add a JS runtime, process plugin, copied formatter or
 post-link import stubs. All Tombi dependencies use the same immutable commit.
 
-The dependency is based directly on upstream v1.9.8 with a small portability
+The dependency is based directly on upstream v1.11.1 with a small portability
 delta in the existing Tombi fork. See UPSTREAM.md for provenance and
 hash-seeding tradeoffs. Keep the formatter/parser algorithms unchanged. Prefer
 upstream non-browser feature support when available rather than growing the
@@ -20,8 +20,9 @@ Invalid/unknown configuration produces diagnostics, not silent coercions.
 
 `src/handler.rs` supplies an offline schema store with disk caching disabled and
 polls the formatter once. A pending future is an error, never a busy loop. Keep
-the pending-future regression and actual WASM execution gate. Do not claim
-filesystem config discovery, remote schema support or a separate lint API.
+the pending-future regression and actual WASM execution gate. kprint reads the
+configuration file and local schemas, then passes their contents to the plugin.
+The plugin cannot fetch remote schemas or expose a separate lint API.
 
 `cargo wasm --locked` produces the distributable artifact directly. There is no
 Binaryen finalization, export rewriting, or Node build dependency. The Node
@@ -38,12 +39,17 @@ cargo fmt --all -- --check
 cargo run --locked --bin generate-schema --features schema
 cargo wasm --locked
 node scripts/wasm-smoke.mjs
+node scripts/schema-parity.mjs
 ```
 
 Run strict Clippy on all native targets/features and the WASM library. Fix
 findings instead of weakening lint policy. The integration script needs dprint
 on PATH or `DPRINT_BIN`; it rejects non-dprint imports and tests the real CLI.
 Native tests alone are not evidence of WASM compatibility.
+
+Run `schema-parity.mjs` with Tombi 1.11.1 and a kprint build that supports
+schema files. `KPRINT_BIN` and `TOMBI_BIN` select those executables. This test
+compares their output using the same configuration and schemas.
 
 ## Generated files and release
 
