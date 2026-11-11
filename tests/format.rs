@@ -3,6 +3,7 @@ use std::path::Path;
 use dprint_core::configuration::{
     ConfigKeyMap, ConfigurationDiagnostic, GlobalConfiguration, NewLineKind,
 };
+use dprint_core::formatting::ArenaPool;
 use dprint_core::plugins::{
     FormatConfigId, FormatResult, NullCancellationToken, PluginResolveConfigurationResult,
     SyncFormatRequest, SyncPluginHandler,
@@ -19,6 +20,7 @@ fn resolve(
 }
 
 fn format(bytes: &[u8], config: &Configuration) -> FormatResult {
+    let arena_pool = ArenaPool::new();
     TombiPluginHandler::default().format(
         SyncFormatRequest {
             file_path: Path::new("test.toml"),
@@ -27,6 +29,7 @@ fn format(bytes: &[u8], config: &Configuration) -> FormatResult {
             config,
             range: None,
             token: &NullCancellationToken,
+            arena_pool: &arena_pool,
         },
         |_| panic!("TOML formatting must not invoke another plugin"),
     )
@@ -231,6 +234,7 @@ fn metadata_matches_release_contract() {
 #[test]
 fn range_requests_do_not_rewrite_the_entire_file() {
     let config = Configuration::default();
+    let arena_pool = ArenaPool::new();
     let result = TombiPluginHandler::default().format(
         SyncFormatRequest {
             file_path: Path::new("test.toml"),
@@ -239,6 +243,7 @@ fn range_requests_do_not_rewrite_the_entire_file() {
             config: &config,
             range: Some(0..3),
             token: &NullCancellationToken,
+            arena_pool: &arena_pool,
         },
         |_| unreachable!(),
     );
@@ -263,6 +268,7 @@ fn schema_and_runtime_have_exactly_the_same_keys() {
 }
 
 fn format_path(path: &str, bytes: &[u8], config: &Configuration) -> FormatResult {
+    let arena_pool = ArenaPool::new();
     TombiPluginHandler::default().format(
         SyncFormatRequest {
             file_path: Path::new(path),
@@ -271,6 +277,7 @@ fn format_path(path: &str, bytes: &[u8], config: &Configuration) -> FormatResult
             config,
             range: None,
             token: &NullCancellationToken,
+            arena_pool: &arena_pool,
         },
         |_| panic!("TOML formatting must not invoke another plugin"),
     )
