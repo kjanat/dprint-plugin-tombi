@@ -16,20 +16,19 @@ impl HttpClient for Resources {
             let text = self.files.get(url).ok_or_else(|| FetchError::FetchFailed {
                 reason: format!("kprint did not supply {url}"),
             })?;
-            match self
-                .schema_sources
+            self.schema_sources
                 .get(url)
                 .filter(|destination| *destination != url)
-            {
-                Some(destination) => {
-                    redirect_schema(text, destination)
-                        .map(Bytes::from)
-                        .map_err(|error| FetchError::FetchFailed {
-                            reason: format!("Loading redirected schema {url}: {error}"),
-                        })
-                }
-                None => Ok(Bytes::copy_from_slice(text.as_bytes())),
-            }
+                .map_or_else(
+                    || Ok(Bytes::copy_from_slice(text.as_bytes())),
+                    |destination| {
+                        redirect_schema(text, destination)
+                            .map(Bytes::from)
+                            .map_err(|error| FetchError::FetchFailed {
+                                reason: format!("Loading redirected schema {url}: {error}"),
+                            })
+                    },
+                )
         })
     }
 }

@@ -72,35 +72,7 @@ impl TombiFile {
         let format_valid = content
             .get("format")
             .filter(|format| !format.is_null())
-            .is_none_or(|format| {
-                if !format.is_object() {
-                    diagnostics.push(ConfigurationDiagnostic {
-                        property_name: format!("{path}: format"),
-                        message: "Expected a table of formatter settings.".into(),
-                    });
-                } else {
-                    for key in format
-                        .as_object()
-                        .into_iter()
-                        .flat_map(|properties| properties.keys())
-                        .filter(|key| key.as_str() != "rules")
-                    {
-                        diagnostics.push(ConfigurationDiagnostic {
-                            property_name: format!("{path}: format.{key}"),
-                            message: "Unknown formatter setting.".into(),
-                        });
-                    }
-                    if let Some(rules) = format.get("rules").filter(|rules| !rules.is_null())
-                        && !rules.is_object()
-                    {
-                        diagnostics.push(ConfigurationDiagnostic {
-                            property_name: format!("{path}: format.rules"),
-                            message: "Expected a table of formatting rules.".into(),
-                        });
-                    }
-                }
-                serde_json::from_value::<tombi_config::FormatOptions>(format.clone()).is_ok()
-            });
+            .is_none_or(|format| validate_file_format(format, &path, diagnostics));
         if format_valid
             && value["text"].is_string()
             && (content.get("extends").is_some() || value["absolutePath"].is_null())
@@ -155,6 +127,35 @@ impl TombiFile {
             path,
         }
     }
+}
+
+fn validate_file_format(
+    format: &Value,
+    path: &str,
+    diagnostics: &mut Vec<ConfigurationDiagnostic>,
+) -> bool {
+    if let Some(properties) = format.as_object() {
+        for key in properties.keys().filter(|key| key.as_str() != "rules") {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: format!("{path}: format.{key}"),
+                message: "Unknown formatter setting.".into(),
+            });
+        }
+        if let Some(rules) = properties.get("rules").filter(|rules| !rules.is_null())
+            && !rules.is_object()
+        {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: format!("{path}: format.rules"),
+                message: "Expected a table of formatting rules.".into(),
+            });
+        }
+    } else {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: format!("{path}: format"),
+            message: "Expected a table of formatter settings.".into(),
+        });
+    }
+    serde_json::from_value::<tombi_config::FormatOptions>(format.clone()).is_ok()
 }
 
 fn supplied_files(
