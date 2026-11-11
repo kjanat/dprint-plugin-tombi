@@ -6,7 +6,7 @@
   "prHourlyLimit": 2,
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am every day"]
+    "schedule": ["before 6am"]
   },
   "customManagers": [
     {
