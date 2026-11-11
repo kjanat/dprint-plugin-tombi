@@ -118,6 +118,35 @@ assert.equal(
   "#:schema first.json\n\na = 2\nz = 1\n",
   "Failed config B must not remove config A's schema files",
 );
+for (const plugin of [{}, { lineWidth: 80 }]) {
+  send(JSON.stringify({
+    global: {},
+    plugin: {
+      ...plugin,
+      $configFile: {
+        path: "tombi.toml",
+        source: "file:///C:/project/tombi.toml",
+        absolutePath: "C:\\project\\tombi.toml",
+        text: "extends = ['base/tombi.toml']\n",
+        content: JSON.stringify({ extends: ["base/tombi.toml"] }),
+        documents: {
+          "file:///C:/project/base/tombi.toml": {
+            source: "file:///C:/project/base/tombi.toml",
+            text: "[format.rules]\nline-width = 'wide'\n",
+          },
+        },
+      },
+    },
+  }));
+  wasm.register_config(4);
+  const diagnostics = JSON.parse(receive(wasm.get_config_diagnostics(4)));
+  assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+  assert.match(
+    diagnostics[0].message,
+    /base\/tombi\.toml.*"wide"/,
+    `An invalid inherited rule must be reported, plugin settings ${JSON.stringify(plugin)}`,
+  );
+}
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dir = mkdtempSync(join(tmpdir(), "dprint-tombi-"));
 const configPath = join(dir, "dprint.json");
