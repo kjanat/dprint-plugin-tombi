@@ -1,15 +1,16 @@
 # Upstream engine and portability delta
 
 The formatter, parser, validator, configuration and date/time algorithms are
-Tombi v1.9.8, upstream commit `081bfcf088589ebd9d151e23010246bb5b40fea6`.
+Tombi v1.11.1, upstream commit `273ace37a1f7b86bc845271d91dfe285b0539e93`.
 
-The dependency uses commit `3bf590560c7196ad7251d3e15098f47472682e6b` in the
-existing `kjanat/tombi` fork, on branch `dprint/v1.9.8-headless`. That branch is
-based directly on the upstream release, not the old fork's development history.
-It carries the commits of `dprint/v1.5.5-headless` unchanged, and one more for
-v1.9.8.
+The dependency uses commit `31999a64609ad79b7c9daeca83bca0179943093f` in the
+existing `kjanat/tombi` fork, on branch `dprint/v1.11.1-headless`. That branch
+is based directly on the upstream release, not the old fork's development
+history. It applies the four portability commits from `dprint/v1.9.8-headless`
+to Tombi v1.11.1, then moves `serde_tombi`'s test-only Chrono dependency to
+`dev-dependencies`.
 
-[Review the complete eleven-file portability delta](https://github.com/kjanat/tombi/compare/081bfcf088589ebd9d151e23010246bb5b40fea6...3bf590560c7196ad7251d3e15098f47472682e6b).
+[Review the complete eleven-file portability delta](https://github.com/kjanat/tombi/compare/273ace37a1f7b86bc845271d91dfe285b0539e93...31999a64609ad79b7c9daeca83bca0179943093f).
 
 Only eleven upstream files differ:
 
@@ -20,9 +21,11 @@ Only eleven upstream files differ:
   `chrono::Local` conversion types; it is separate from `wasmbind`. Formatting
   TOML date/time literals does not read the clock or the host's time zone.
 - `tombi-lsp/Cargo.toml`, `tombi-test-lib/Cargo.toml`,
-  `rust/serde_tombi/Cargo.toml` and `xtask/Cargo.toml` explicitly retain
+  `rust/serde_tombi/Cargo.toml` and `xtask/Cargo.toml` explicitly use
   `default-features = true` for Chrono, preserving their previous dependency
-  profiles after the workspace change.
+  profiles after the workspace change. `serde_tombi` uses Chrono only in tests,
+  so its declaration is under `dev-dependencies`. This prevents its default
+  browser bindings from entering the plugin build.
 - `tombi-hashmap/Cargo.toml` selects ahash's supported `std` + `no-rng` profile
   for WASM, while preserving ordinary native seeding. This changes hash-table
   seeding, not a randomness API. Fixed seeds are weaker against adversarial
@@ -37,7 +40,8 @@ Only eleven upstream files differ:
   unification from other crates; the headless Wasm build has none and didn't
   compile.
 
-The plugin disables schema-store HTTP features and disk caching. The artifact
+The plugin supplies an HTTP client that reads files downloaded by kprint. Tombi's
+Wasm build has no disk cache. The artifact
 must import only dprint host functions, not JavaScript, WASI or browser APIs.
 
 ## Why there is no post-link workaround

@@ -10,6 +10,10 @@ keywords    = ["dprint", "formatter", "tombi", "toml", "wasm"]
 categories  = ["development-tools", "text-editors"]
 publish     = false
 
+[features]
+default = []
+schema  = ["dep:schemars", "tombi-config/jsonschema"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -20,21 +24,22 @@ required-features = ["schema"]
 
 [dependencies]
 anyhow             = "1"
+bytes              = "1"
 dprint-core        = { version = "0.69.1", features = ["wasm"] }
 itertools          = "0.14"
 schemars           = { version = "1.2.1", optional = true }
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
-# Upstream Tombi v1.9.8 with a narrow headless-build portability delta.
+serde_tombi        = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f", default-features = false, features = [
+  "wasm"
+] }
+# Upstream Tombi v1.11.1 with a narrow headless-build portability delta.
 # Formatter/parser algorithms are unchanged; see UPSTREAM.md for the exact diff.
-tombi-config       = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b", features = ["serde"] }
-tombi-formatter    = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b" }
-tombi-schema-store = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b", default-features = false }
-tombi-uri          = { git = "https://github.com/kjanat/tombi", rev = "3bf590560c7196ad7251d3e15098f47472682e6b" }
-
-[features]
-default = []
-schema  = ["dep:schemars", "tombi-config/jsonschema"]
+tombi-config       = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f", features = ["serde"] }
+tombi-formatter    = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f" }
+tombi-fs           = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f" }
+tombi-schema-store = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f", default-features = false }
+tombi-uri          = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f" }
 
 [lints.clippy]
 all                     = { level = "deny", priority = -1 }

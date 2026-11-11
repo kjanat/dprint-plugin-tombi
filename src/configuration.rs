@@ -7,28 +7,27 @@ use tombi_config::{SchemaItem, TomlVersion, format::FormatRules};
 
 const TOML_VERSION_ALIASES: [(&str, &str); 2] = [("1.0.0", "v1.0.0"), ("1.1.0", "v1.1.0")];
 
-/// The configuration files of Tombi's own a dprint that passes plugins one
-/// (`$configFile`) looks for, in Tombi's order: the first that exists is
-/// used, a `pyproject.toml` only when it has a `[tool.tombi]`.
+/// Kprint searches these files in order. It uses `pyproject.toml` only if
+/// the file contains a `[tool.tombi]` table.
 pub const CONFIG_FILES: [&str; 4] = [
     ".tombi.toml",
     "tombi.toml",
-    "pyproject.toml#tool.tombi",
     ".config/tombi.toml",
+    "pyproject.toml#tool.tombi",
 ];
-/// The property dprint names the file to pass in, which a dprint that
-/// passes one never passes on.
+/// The user's configuration-file selection, consumed by kprint.
 const CONFIG_FILE_PROPERTY: &str = "configFile";
-/// The property dprint passes the file in: its `path` and parsed `content`,
-/// as a JSON string.
+/// Configuration text, parsed values and downloaded files supplied by kprint.
 const CONFIG_FILE_CONTENT_PROPERTY: &str = "$configFile";
 
-/// What applies of the Tombi configuration file dprint passed (ex.
-/// `tombi.toml`): its TOML version, formatting rules and schemas, which the
-/// plugin's own properties override.
+/// Settings read from Tombi's configuration file before applying plugin options.
 #[derive(Default)]
 struct TombiFile {
     path: String,
+    absolute_path: Option<std::path::PathBuf>,
+    files: std::collections::BTreeMap<String, String>,
+    file_sources: std::collections::BTreeMap<String, String>,
+    schema: Option<tombi_config::SchemaOverviewOptions>,
     toml_version: Option<Value>,
     rules: Map<String, Value>,
     schemas: Option<Value>,
@@ -53,7 +52,7 @@ impl TombiFile {
             .as_str()
             .unwrap_or("the configuration file")
             .to_string();
-        let content = match value["content"].as_str().map(serde_json::from_str::<Value>) {
+        let mut content = match value["content"].as_str().map(serde_json::from_str::<Value>) {
             Some(Ok(content)) => content,
             Some(Err(error)) => {
                 diagnostics.push(ConfigurationDiagnostic {
@@ -70,16 +69,220 @@ impl TombiFile {
                 return Self::default();
             }
         };
+        if value["text"].is_string()
+            && (content.get("extends").is_some() || value["absolutePath"].is_null())
+        {
+            match resolve_inheritance(&value, &content) {
+                Ok(resolved) => content = resolved,
+                Err(error) => diagnostics.push(ConfigurationDiagnostic {
+                    property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
+                    message: format!("{path}: {error}"),
+                }),
+            }
+        }
+        let files = supplied_files(&value, "files", &path, diagnostics);
+        let schema = content
+            .get("schema")
+            .filter(|value| !value.is_null())
+            .map(|value| serde_json::from_value(value.clone()))
+            .transpose()
+            .unwrap_or_else(|error| {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: format!("{path}: schema"),
+                    message: error.to_string(),
+                });
+                None
+            });
+        let file_sources = supplied_files(&value, "fileSources", &path, diagnostics);
         Self {
-            toml_version: content.get("toml-version").cloned(),
+            absolute_path: value["absolutePath"]
+                .as_str()
+                .map(std::path::PathBuf::from)
+                .or_else(|| {
+                    value["baseDirectory"]
+                        .as_str()
+                        .map(|base| std::path::Path::new(base).join("tombi.toml"))
+                }),
+            files,
+            file_sources,
+            schema,
+            toml_version: content
+                .get("toml-version")
+                .filter(|value| !value.is_null())
+                .cloned(),
             rules: content
                 .pointer("/format/rules")
                 .and_then(Value::as_object)
                 .cloned()
                 .unwrap_or_default(),
-            schemas: content.get("schemas").cloned(),
+            schemas: content
+                .get("schemas")
+                .filter(|value| !value.is_null())
+                .cloned(),
             path,
         }
+    }
+}
+
+fn supplied_files(
+    value: &Value,
+    key: &str,
+    path: &str,
+    diagnostics: &mut Vec<ConfigurationDiagnostic>,
+) -> std::collections::BTreeMap<String, String> {
+    value
+        .get(key)
+        .map_or_else(
+            || Ok(std::collections::BTreeMap::new()),
+            |files| serde_json::from_value(files.clone()),
+        )
+        .unwrap_or_else(|error| {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
+                message: format!("{path}: invalid {key}: {error}"),
+            });
+            std::collections::BTreeMap::new()
+        })
+}
+
+fn resolve_urls(text: &str, source: &str) -> anyhow::Result<String> {
+    let store = tombi_schema_store::SchemaStore::new_with_options(tombi_schema_store::Options {
+        offline: Some(true),
+        ..Default::default()
+    });
+    let parser = serde_tombi::Deserializer::builder()
+        .schema_store(&store)
+        .build();
+    let mut content: Value = crate::handler::ready(parser.from_str_async(text))??;
+    serialize_remote_config(&mut content, source)
+}
+
+fn serialize_remote_config(content: &mut Value, source: &str) -> anyhow::Result<String> {
+    let store = tombi_schema_store::SchemaStore::new_with_options(tombi_schema_store::Options {
+        offline: Some(true),
+        ..Default::default()
+    });
+    let base = source.parse::<tombi_uri::Uri>()?;
+    if let Some(extends) = content.get_mut("extends").and_then(Value::as_array_mut) {
+        for path in extends {
+            if let Some(relative) = path.as_str() {
+                *path = Value::String(base.join(relative)?.to_string());
+            }
+        }
+    }
+    if let Some(schemas) = content.get_mut("schemas").and_then(Value::as_array_mut) {
+        for schema in schemas {
+            if let Some(path) = schema.get_mut("path")
+                && let Some(relative) = path.as_str()
+            {
+                *path = Value::String(base.join(relative)?.to_string());
+            }
+        }
+    }
+    let serializer = serde_tombi::Serializer::builder()
+        .schema_store(&store)
+        .build();
+    Ok(crate::handler::ready(
+        serializer.to_string_async(&content),
+    )??)
+}
+
+fn resolve_inheritance(value: &Value, selected: &Value) -> anyhow::Result<Value> {
+    #[derive(serde::Deserialize)]
+    struct Document {
+        source: String,
+        text: String,
+    }
+    let documents: std::collections::BTreeMap<String, Document> = value
+        .get("documents")
+        .map(|v| serde_json::from_value(v.clone()))
+        .transpose()?
+        .unwrap_or_default();
+    let source = value["source"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("kprint supplied no configuration source"))?;
+    let remote = source.starts_with("https://") || source.starts_with("http://");
+    let mut documents = documents
+        .into_iter()
+        .map(|(uri, document)| {
+            let text = if document.source.starts_with("https://")
+                || document.source.starts_with("http://")
+            {
+                resolve_urls(&document.text, &document.source)?
+            } else {
+                document.text
+            };
+            Ok((uri, text))
+        })
+        .collect::<anyhow::Result<std::collections::BTreeMap<_, _>>>()?;
+    let root_text = if remote {
+        serialize_remote_config(&mut selected.clone(), source)?
+    } else {
+        let store =
+            tombi_schema_store::SchemaStore::new_with_options(tombi_schema_store::Options {
+                offline: Some(true),
+                ..Default::default()
+            });
+        let serializer = serde_tombi::Serializer::builder()
+            .schema_store(&store)
+            .build();
+        let selected = if value["absolutePath"].as_str().is_some_and(|path| {
+            crate::handler::formatter_path(std::path::Path::new(path))
+                .file_name()
+                .is_some_and(|name| name == "pyproject.toml")
+        }) {
+            json!({"tool": {"tombi": selected}})
+        } else {
+            selected.clone()
+        };
+        crate::handler::ready(serializer.to_string_async(&selected))??
+    };
+    documents.insert(source.to_owned(), root_text.clone());
+    tombi_fs::clear();
+    for (uri, text) in &documents {
+        if let Ok(uri) = uri.parse::<tombi_uri::Uri>()
+            && let Ok(path) = uri.to_file_path()
+        {
+            tombi_fs::set_file(crate::handler::formatter_path(&path), text);
+        }
+    }
+    let http = tombi_schema_store::CachedHttpClient::new(
+        crate::resources::client(documents),
+        tombi_schema_store::HttpClientOptions {
+            offline: false,
+            cache: None,
+        },
+    );
+    let path = value["absolutePath"].as_str().map_or_else(
+        || std::path::PathBuf::from("/tombi.toml"),
+        std::path::PathBuf::from,
+    );
+    let config = crate::handler::ready(serde_tombi::config::from_str(
+        &root_text,
+        &crate::handler::formatter_path(&path),
+        &http,
+    ))??;
+    let mut config = serde_json::to_value(config)?;
+    omit_unset_options(&mut config);
+    Ok(config)
+}
+
+// Tombi serializes absent options as null. Remove them so they do not reset
+// formatting options inherited from kprint's global configuration.
+fn omit_unset_options(value: &mut Value) {
+    match value {
+        Value::Object(properties) => {
+            properties.retain(|_, value| !value.is_null());
+            for value in properties.values_mut() {
+                omit_unset_options(value);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                omit_unset_options(value);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -88,6 +291,8 @@ impl TombiFile {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct Configuration {
+    #[serde(skip)]
+    pub(crate) schema_context: SchemaContext,
     /// The TOML language version. Document directives may override it.
     #[cfg_attr(feature = "schema", schemars(default))]
     pub toml_version: TomlVersion,
@@ -95,13 +300,20 @@ pub struct Configuration {
     #[serde(flatten, serialize_with = "serialize_rules")]
     #[cfg_attr(feature = "schema", schemars(with = "FormatRules"))]
     pub rules: FormatRules,
-    /// Tombi's `[[schemas]]`, with camelCase keys (ex. `tomlVersion`): the
-    /// schemas of the files they include, ahead of the ones built into Tombi.
-    /// A schema can give its files a TOML version, ex. `v1.0.0` for
-    /// `Cargo.toml`, which Cargo reads as TOML 1.0. Remote schemas aren't
-    /// fetched, so only what an entry says itself applies to its files.
+    /// Tombi's `[[schemas]]`, with camelCase keys such as `tomlVersion`.
+    /// These associations take precedence over Tombi's built-in catalog.
+    /// Kprint supplies local and downloaded schemas. If none was supplied,
+    /// the plugin uses Tombi's built-in copy when available.
     #[cfg_attr(feature = "schema", schemars(default))]
     pub schemas: Vec<SchemaItem>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SchemaContext {
+    pub path: Option<std::path::PathBuf>,
+    pub files: std::collections::BTreeMap<String, String>,
+    pub file_sources: std::collections::BTreeMap<String, String>,
+    pub options: Option<tombi_config::SchemaOverviewOptions>,
 }
 
 fn camel_case(key: &str) -> String {
@@ -145,6 +357,25 @@ pub fn resolve_config(
     let file = TombiFile::take(&mut config, &mut diagnostics);
     let toml_version = resolve_version(&mut config, &file, &mut diagnostics);
     let schemas = resolve_schemas(&mut config, &file, &mut diagnostics);
+    if file
+        .schema
+        .as_ref()
+        .is_none_or(|schema| schema.enabled.unwrap_or_default().value())
+        && file.absolute_path.is_none()
+        && schemas.iter().any(|schema| {
+            schema
+                .path()
+                .parse::<tombi_uri::Uri>()
+                .map_or(true, |uri| uri.scheme() == "file")
+        })
+    {
+        diagnostics.push(ConfigurationDiagnostic {
+            property_name: "schemas".into(),
+            message:
+                "Local schemas require a kprint version that supplies schema files to plugins."
+                    .into(),
+        });
+    }
     let inherited = inherited_rules(global);
     // These Option fields serialize as null. Discovering their names from the
     // upstream type avoids a second, inevitably stale list of supported rules.
@@ -185,6 +416,12 @@ pub fn resolve_config(
     diagnostics.extend(get_unknown_property_diagnostics(config));
     (
         Configuration {
+            schema_context: SchemaContext {
+                path: file.absolute_path,
+                file_sources: file.file_sources,
+                files: file.files,
+                options: file.schema,
+            },
             toml_version,
             // Each field was deserialized independently above. There are no
             // cross-field deserialization constraints in the upstream type.

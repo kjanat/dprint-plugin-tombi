@@ -10,6 +10,68 @@ const module = new WebAssembly.Module(readFileSync(plugin));
 const foreign = WebAssembly.Module.imports(module).filter((entry) => entry.module !== "dprint");
 assert.deepEqual(foreign, [], "The plugin must not import JavaScript, WASI, or other non-dprint APIs");
 assert.ok(WebAssembly.Module.exports(module).some(({ name }) => name === "dprint_plugin_version_4"));
+const noHostFormatting = () => {
+  throw new Error("TOML must not request host formatting");
+};
+const wasm = new WebAssembly.Instance(module, {
+  dprint: {
+    host_has_cancelled: () => 0,
+    host_format: noHostFormatting,
+    host_write_buffer: noHostFormatting,
+    host_get_formatted_text: noHostFormatting,
+    host_get_error_text: noHostFormatting,
+  },
+}).exports;
+function send(text) {
+  const bytes = new TextEncoder().encode(text);
+  const pointer = wasm.clear_shared_bytes(bytes.length);
+  new Uint8Array(wasm.memory.buffer, pointer, bytes.length).set(bytes);
+}
+function receive(length) {
+  return new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, wasm.get_shared_bytes_ptr(), length));
+}
+function formatInInstance(settings, source) {
+  send(JSON.stringify({ global: {}, plugin: settings }));
+  wasm.register_config(1);
+  assert.deepEqual(JSON.parse(receive(wasm.get_config_diagnostics(1))), []);
+  send("C:\\project\\example.toml");
+  wasm.set_file_path();
+  send(source);
+  const result = wasm.format(1);
+  if (result === 2) throw new Error(receive(wasm.get_error_text()));
+  assert.ok(result === 0 || result === 1);
+  return result === 0 ? source : receive(wasm.get_formatted_text());
+}
+const sortingSchema = JSON.stringify({
+  type: "object",
+  additionalProperties: { type: "integer" },
+  "x-tombi-table-keys-order": "ascending",
+});
+const inherited = {
+  $configFile: {
+    path: "pyproject.toml#tool.tombi",
+    absolutePath: "C:\\project\\pyproject.toml",
+    source: "file:///C:/project/pyproject.toml",
+    text: "[tool.tombi]\nextends = ['base/tombi.toml']\n",
+    content: JSON.stringify({ extends: ["base/tombi.toml"] }),
+    documents: {
+      "file:///C:/project/base/tombi.toml": {
+        source: "file:///C:/project/base/tombi.toml",
+        text: "[format.rules]\nstring-quote-style = 'single'\n",
+      },
+    },
+    files: { "C:\\project\\first.json": sortingSchema, "C:\\project\\second.json": sortingSchema },
+  },
+};
+assert.equal(formatInInstance(inherited, "name=\"demo\"\n"), "name = 'demo'\n", "Windows pyproject.toml inheritance");
+for (const name of ["first", "second"]) {
+  assert.equal(
+    formatInInstance(inherited, `#:schema ${name}.json\n\nz=1\na=2\n`),
+    `#:schema ${name}.json\n\na = 2\nz = 1\n`,
+    "Resolving config again must reinstall uncached schemas in the same Wasm instance",
+  );
+}
+console.log("WASM Windows pyproject inheritance and schema reload passed.");
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dir = mkdtempSync(join(tmpdir(), "dprint-tombi-"));
 const configPath = join(dir, "dprint.json");
@@ -107,6 +169,32 @@ try {
   run(["fmt"]);
   assert.equal(contents("tombi.toml"), multiLine);
   assert.equal(contents("Cargo.toml"), singleLine);
+  run(["check"]);
+
+  rmSync(join(dir, "tombi.toml"));
+  rmSync(join(dir, "Cargo.toml"));
+  delete config.toml.schemas;
+  config.toml.$configFile = {
+    path: "tombi.toml",
+    absolutePath: join(dir, "tombi.toml"),
+    content: JSON.stringify({ schemas: [{ path: "schema.json", include: ["ordered.toml"] }] }),
+    files: {
+      [join(dir, "schema.json")]: JSON.stringify({
+        type: "object",
+        properties: {
+          first: { $ref: "fields.json" },
+          entries: { type: "array", items: { type: "object" } },
+          last: { type: "object" },
+        },
+        "x-tombi-table-keys-order": { properties: "schema" },
+      }),
+      [join(dir, "fields.json")]: JSON.stringify({ type: "object", "x-tombi-table-keys-order": "ascending" }),
+    },
+  };
+  writeConfig();
+  writeFileSync(join(dir, "ordered.toml"), "[last]\nx = 0\n\n[[entries]]\nx = 0\n\n[first]\nz = 1\na = 2\n");
+  run(["fmt"]);
+  assert.equal(contents("ordered.toml"), "[first]\na = 2\nz = 1\n\n[[entries]]\nx = 0\n\n[last]\nx = 0\n");
   run(["check"]);
   console.log(
     "WASM imports, formatting, dates, directives, idempotence, associations, overrides, diagnostics, and schemas passed.",
