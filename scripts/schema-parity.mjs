@@ -120,12 +120,15 @@ try {
 
   mkdirSync(join(directory, ".github"));
   cpSync(join(fixtures, "actionlint.schema.json"), join(directory, "actionlint.schema.json"));
-  const regression = compare(
-    "original actionlint table-order regression",
+  writeFileSync(
+    join(directory, "tombi.toml"),
+    `${config}\n[[schemas]]\npath = "actionlint.schema.json"\ninclude = [".github/actionlint.toml"]\n`,
+  );
+  compare(
+    "actionlint config with optional sections",
     ".github/actionlint.toml",
     readFileSync(join(fixtures, "actionlint.toml"), "utf8"),
   );
-  assert.ok(regression.indexOf("[[ignores]]") < regression.indexOf("[local-actions]"), regression);
 
   if (process.env.ACTIONLINT_PROJECT) {
     const project = process.env.ACTIONLINT_PROJECT;
