@@ -93,10 +93,13 @@ fn disabled_schemas_ignore_malformed_redirected_resources() {
 
 #[test]
 fn configuration_file_format_rules_are_validated_with_and_without_inheritance() {
-    for format in [
-        json!("invalid"),
-        json!({"rules": []}),
-        json!({"rules": {"unknown-rule": true}}),
+    for (format, field) in [
+        (json!("invalid"), "format"),
+        (json!({"rules": []}), "format.rules"),
+        (
+            json!({"rules": {"unknown-rule": true}}),
+            "format.rules.unknown-rule",
+        ),
     ] {
         for inherits in [false, true] {
             let mut content = json!({"format": format, "unrelated-project-setting": true});
@@ -119,7 +122,10 @@ fn configuration_file_format_rules_are_validated_with_and_without_inheritance() 
                 "{content}: {:?}",
                 result.diagnostics
             );
-            assert_eq!(result.diagnostics[0].property_name, "tombi.toml: format");
+            assert_eq!(
+                result.diagnostics[0].property_name,
+                format!("tombi.toml: {field}")
+            );
         }
     }
     let result = resolve(
@@ -432,7 +438,7 @@ fn a_tombi_configuration_file_dprint_passes_applies() {
 }
 
 #[test]
-fn what_is_wrong_in_a_tombi_configuration_file_names_it() {
+fn configuration_errors_include_file_and_field() {
     let resolved = resolve(
         with_config_file(
             json!({}),
