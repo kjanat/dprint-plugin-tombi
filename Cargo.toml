@@ -30,7 +30,7 @@ itertools          = "0.14"
 schemars           = { version = "1.2.1", optional = true }
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
-serde_tombi        = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f", default-features = false, features = [
+serde_tombi        = { git = "https://github.com/kjanat/tombi", rev = "14838ecf5d53cf48e27a58f7d813a02075df0a58", default-features = false, features = [
   "wasm"
 ] }
 # Upstream Tombi v1.11.1 with a narrow headless-build portability delta.
