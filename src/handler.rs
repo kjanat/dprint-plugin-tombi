@@ -5,9 +5,9 @@ use std::{
 
 use dprint_core::configuration::{ConfigKeyMap, GlobalConfiguration};
 use dprint_core::plugins::{
-    CheckConfigUpdatesMessage, ConfigChange, FileMatchingInfo, FormatError, FormatResult,
-    PluginInfo, PluginResolveConfigurationResult, SyncFormatRequest, SyncHostFormatRequest,
-    SyncPluginHandler,
+    CheckConfigUpdatesMessage, ConfigChange, FileMatchingInfo, FormatConfigId, FormatError,
+    FormatResult, PluginInfo, PluginResolveConfigurationResult, SyncFormatRequest,
+    SyncHostFormatRequest, SyncPluginHandler,
 };
 use itertools::Either;
 use tombi_config::SchemaItem;
@@ -19,7 +19,7 @@ use crate::{Configuration, SCHEMA_URL, UPDATE_URL, configuration};
 /// Formats TOML with Tombi's built-in schemas and schemas supplied by kprint.
 #[derive(Default)]
 pub struct TombiPluginHandler {
-    store: Option<(Vec<SchemaItem>, configuration::SchemaContext, SchemaStore)>,
+    store: Option<(FormatConfigId, SchemaStore)>,
 }
 
 impl TombiPluginHandler {
@@ -29,18 +29,20 @@ impl TombiPluginHandler {
         Self { store: None }
     }
 
-    fn store(&mut self, config: &Configuration) -> Result<&SchemaStore, FormatError> {
-        if !self.store.as_ref().is_some_and(|(schemas, context, _)| {
-            schemas == &config.schemas && context == &config.schema_context
-        }) {
+    fn store(
+        &mut self,
+        id: FormatConfigId,
+        config: &Configuration,
+    ) -> Result<&SchemaStore, FormatError> {
+        if !self
+            .store
+            .as_ref()
+            .is_some_and(|(cached_id, _)| *cached_id == id)
+        {
             self.store = None;
-            self.store = Some((
-                config.schemas.clone(),
-                config.schema_context.clone(),
-                schema_store(config)?,
-            ));
+            self.store = Some((id, schema_store(config)?));
         }
-        Ok(&self.store.as_ref().expect("schema store was initialized").2)
+        Ok(&self.store.as_ref().expect("schema store was initialized").1)
     }
 }
 
@@ -144,7 +146,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
         let options = tombi_config::FormatOptions {
             rules: Some(request.config.rules.clone()),
         };
-        let store = self.store(request.config)?;
+        let store = self.store(request.config_id, request.config)?;
         let path = formatter_path(request.file_path);
         let formatter = Formatter::new(
             request.config.toml_version,

@@ -31,13 +31,19 @@ function receive(length) {
   return new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, wasm.get_shared_bytes_ptr(), length));
 }
 function formatInInstance(settings, source) {
+  registerConfig(1, settings);
+  return formatRegistered(1, source);
+}
+function registerConfig(id, settings) {
   send(JSON.stringify({ global: {}, plugin: settings }));
-  wasm.register_config(1);
-  assert.deepEqual(JSON.parse(receive(wasm.get_config_diagnostics(1))), []);
+  wasm.register_config(id);
+  assert.deepEqual(JSON.parse(receive(wasm.get_config_diagnostics(id))), []);
+}
+function formatRegistered(id, source) {
   send("C:\\project\\example.toml");
   wasm.set_file_path();
   send(source);
-  const result = wasm.format(1);
+  const result = wasm.format(id);
   if (result === 2) throw new Error(receive(wasm.get_error_text()));
   assert.ok(result === 0 || result === 1);
   return result === 0 ? source : receive(wasm.get_formatted_text());
@@ -84,6 +90,34 @@ for (const name of ["first", "second"]) {
   );
 }
 console.log("WASM Windows pyproject inheritance and schema reload passed.");
+registerConfig(2, inherited);
+registerConfig(3, { stringQuoteStyle: "double" });
+assert.equal(formatRegistered(2, "name=\"demo\"\n"), "name = 'demo'\n");
+assert.equal(formatRegistered(3, "name='demo'\n"), "name = \"demo\"\n");
+assert.equal(
+  formatRegistered(2, "#:schema second.json\n\nz=1\na=2\n"),
+  "#:schema second.json\n\na = 2\nz = 1\n",
+  "Returning to config A must restore its previously unused schema",
+);
+send(JSON.stringify({
+  global: {},
+  plugin: {
+    $configFile: {
+      path: "tombi.toml",
+      source: "file:///C:/project/tombi.toml",
+      absolutePath: "C:\\project\\tombi.toml",
+      text: "extends = ['missing.toml']\n",
+      content: JSON.stringify({ extends: ["missing.toml"] }),
+    },
+  },
+}));
+wasm.register_config(3);
+assert.notDeepEqual(JSON.parse(receive(wasm.get_config_diagnostics(3))), []);
+assert.equal(
+  formatRegistered(2, "#:schema first.json\n\nz=1\na=2\n"),
+  "#:schema first.json\n\na = 2\nz = 1\n",
+  "Failed config B must not remove config A's schema files",
+);
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dir = mkdtempSync(join(tmpdir(), "dprint-tombi-"));
 const configPath = join(dir, "dprint.json");
