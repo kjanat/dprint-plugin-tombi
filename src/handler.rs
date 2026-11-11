@@ -94,6 +94,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
             help_url: env!("CARGO_PKG_REPOSITORY").into(),
             config_schema_url: SCHEMA_URL.into(),
             update_url: Some(UPDATE_URL.into()),
+            supports_range_formatting: false,
         }
     }
 
@@ -119,6 +120,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
             file_matching: FileMatchingInfo {
                 file_extensions: vec!["toml".into()],
                 file_names: vec![],
+                additive: false,
             },
         }
     }
