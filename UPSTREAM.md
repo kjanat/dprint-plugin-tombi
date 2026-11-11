@@ -55,8 +55,16 @@ rewriting, import stubbing, or copied formatter in this repository.
 ## Updating
 
 Prefer upstream non-browser feature support when it becomes available. Until
-then, rebase this small portability delta onto the chosen upstream release,
-point all Tombi dependencies at the branch for that release, and update
-Cargo.lock and schema.json. Require native tests, strict native/WASM Clippy, and
-the unchanged dprint-only import audit plus real CLI execution to pass. Do not
-expand the fork into an independently maintained formatting engine.
+then, rebase this small portability delta onto the chosen upstream release, and
+push it as `dprint/vX.Y.Z-headless`. Renovate opens one pull request that points
+all Tombi dependencies at that branch. On it, update Cargo.lock and regenerate
+schema.json:
+
+```sh
+cargo update -p serde_tombi -p tombi-config -p tombi-formatter -p tombi-fs -p tombi-schema-store -p tombi-uri
+cargo run --locked --bin generate-schema --features schema
+```
+
+Require native tests, strict native/WASM Clippy, and the unchanged dprint-only
+import audit plus real CLI execution to pass. Do not expand the fork into an
+independently maintained formatting engine.

@@ -1,9 +1,5 @@
 name: Tombi upstream
 
-# Tombi comes from a branch of the kjanat/tombi fork that carries a
-# portability delta (see UPSTREAM.md). Renovate's lock file maintenance picks
-# up new commits on that branch; when upstream has a newer release, an issue
-# asks for the delta to be rebased onto it.
 on:
   schedule: [{ cron: "0 6 * * 1" }]
   workflow_dispatch:
