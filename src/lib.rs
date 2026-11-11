@@ -50,4 +50,9 @@ mod wasm_plugin {
     pub extern "C" fn get_config_schema_paths() -> usize {
         set_shared_bytes_str(String::from(r#"[["schemas","*","path"]]"#))
     }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn get_config_local_schemas_use_root() -> usize {
+        set_shared_bytes_str(String::from("true"))
+    }
 }

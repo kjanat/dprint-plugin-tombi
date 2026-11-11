@@ -51,9 +51,9 @@ truncated.
 With [kprint](https://github.com/kjanat/kprint) 0.60.5 or later, the plugin
 reads formatting options from Tombi's configuration file. The first of these
 next to the dprint configuration file is used, in Tombi's order: `.tombi.toml`,
-`tombi.toml`, `pyproject.toml` (with a `[tool.tombi]`), `.config/tombi.toml`.
-Its `toml-version`, `format.rules` and `[[schemas]]` apply; the plugin's own
-properties take precedence over them, and they over dprint's globals.
+`tombi.toml`, `.config/tombi.toml`, `pyproject.toml` with a `[tool.tombi]`
+table. Its `toml-version`, `format.rules` and `[[schemas]]` apply; the plugin's
+own properties take precedence over them, and they over dprint's globals.
 
 `configFile` names another file, or the part of one, or turns it off:
 
@@ -137,10 +137,12 @@ Node is used only by the integration test harness; it is not needed to build or
 run the plugin.
 
 Kprint supplies schemas listed in `[[schemas]]`, including files referenced by
-`$ref`. It reads local files and downloads HTTP(S) URLs. Relative paths resolve
-beside their configuration file. For a local `.config/tombi.toml`, Tombi uses
-the directory above `.config`. Local files must be inside the directory containing
-the kprint configuration. Changes to a local schema invalidate the cached plugin
+`$ref`. It reads local files and downloads HTTP(S) URLs. Relative local schema
+paths use the selected Tombi configuration's directory, including paths from
+inherited local configurations. For `.config/tombi.toml`, Tombi uses the
+directory above `.config`. Relative URLs in remote configurations use that
+file's URL. Local files must be inside the directory containing the kprint
+configuration. Changes to a local schema invalidate the cached plugin
 configuration, including in the language server.
 
 This requires kprint's `get_config_schema_paths` support. Older hosts report a

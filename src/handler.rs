@@ -62,7 +62,11 @@ fn schema_store(settings: &Configuration) -> Result<SchemaStore, FormatError> {
             lint: schema.lint.clone(),
             ..Options::default()
         },
-        crate::resources::client(settings.schema_context.files.clone()),
+        crate::resources::schema_client(
+            settings.schema_context.files.clone(),
+            &settings.schema_context.file_sources,
+        )
+        .map_err(|error| FormatError::new(format!("Loading schema redirects: {error}")))?,
     );
     // only the built-in catalog: the default also lists JSON Schema Store's,
     // which would have to be fetched

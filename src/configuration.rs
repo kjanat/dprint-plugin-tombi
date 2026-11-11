@@ -12,8 +12,8 @@ const TOML_VERSION_ALIASES: [(&str, &str); 2] = [("1.0.0", "v1.0.0"), ("1.1.0", 
 pub const CONFIG_FILES: [&str; 4] = [
     ".tombi.toml",
     "tombi.toml",
-    "pyproject.toml#tool.tombi",
     ".config/tombi.toml",
+    "pyproject.toml#tool.tombi",
 ];
 /// The user's configuration-file selection, consumed by kprint.
 const CONFIG_FILE_PROPERTY: &str = "configFile";
@@ -26,6 +26,7 @@ struct TombiFile {
     path: String,
     absolute_path: Option<std::path::PathBuf>,
     files: std::collections::BTreeMap<String, String>,
+    file_sources: std::collections::BTreeMap<String, String>,
     schema: Option<tombi_config::SchemaOverviewOptions>,
     toml_version: Option<Value>,
     rules: Map<String, Value>,
@@ -68,10 +69,10 @@ impl TombiFile {
                 return Self::default();
             }
         };
-        if let Some(text) = value["text"].as_str()
+        if value["text"].is_string()
             && (content.get("extends").is_some() || value["absolutePath"].is_null())
         {
-            match resolve_inheritance(&value, &content, text) {
+            match resolve_inheritance(&value, &content) {
                 Ok(resolved) => content = resolved,
                 Err(error) => diagnostics.push(ConfigurationDiagnostic {
                     property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
@@ -79,19 +80,7 @@ impl TombiFile {
                 }),
             }
         }
-        let files = value
-            .get("files")
-            .map_or_else(
-                || Ok(std::collections::BTreeMap::new()),
-                |files| serde_json::from_value(files.clone()),
-            )
-            .unwrap_or_else(|error| {
-                diagnostics.push(ConfigurationDiagnostic {
-                    property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
-                    message: format!("{path}: invalid schema files: {error}"),
-                });
-                std::collections::BTreeMap::new()
-            });
+        let files = supplied_files(&value, "files", &path, diagnostics);
         let schema = content
             .get("schema")
             .filter(|value| !value.is_null())
@@ -104,6 +93,7 @@ impl TombiFile {
                 });
                 None
             });
+        let file_sources = supplied_files(&value, "fileSources", &path, diagnostics);
         Self {
             absolute_path: value["absolutePath"]
                 .as_str()
@@ -114,6 +104,7 @@ impl TombiFile {
                         .map(|base| std::path::Path::new(base).join("tombi.toml"))
                 }),
             files,
+            file_sources,
             schema,
             toml_version: content
                 .get("toml-version")
@@ -131,6 +122,27 @@ impl TombiFile {
             path,
         }
     }
+}
+
+fn supplied_files(
+    value: &Value,
+    key: &str,
+    path: &str,
+    diagnostics: &mut Vec<ConfigurationDiagnostic>,
+) -> std::collections::BTreeMap<String, String> {
+    value
+        .get(key)
+        .map_or_else(
+            || Ok(std::collections::BTreeMap::new()),
+            |files| serde_json::from_value(files.clone()),
+        )
+        .unwrap_or_else(|error| {
+            diagnostics.push(ConfigurationDiagnostic {
+                property_name: CONFIG_FILE_CONTENT_PROPERTY.into(),
+                message: format!("{path}: invalid {key}: {error}"),
+            });
+            std::collections::BTreeMap::new()
+        })
 }
 
 fn resolve_urls(text: &str, source: &str) -> anyhow::Result<String> {
@@ -175,7 +187,7 @@ fn serialize_remote_config(content: &mut Value, source: &str) -> anyhow::Result<
     )??)
 }
 
-fn resolve_inheritance(value: &Value, selected: &Value, text: &str) -> anyhow::Result<Value> {
+fn resolve_inheritance(value: &Value, selected: &Value) -> anyhow::Result<Value> {
     #[derive(serde::Deserialize)]
     struct Document {
         source: String,
@@ -206,7 +218,24 @@ fn resolve_inheritance(value: &Value, selected: &Value, text: &str) -> anyhow::R
     let root_text = if remote {
         serialize_remote_config(&mut selected.clone(), source)?
     } else {
-        text.to_owned()
+        let store =
+            tombi_schema_store::SchemaStore::new_with_options(tombi_schema_store::Options {
+                offline: Some(true),
+                ..Default::default()
+            });
+        let serializer = serde_tombi::Serializer::builder()
+            .schema_store(&store)
+            .build();
+        let selected = if value["absolutePath"].as_str().is_some_and(|path| {
+            std::path::Path::new(path)
+                .file_name()
+                .is_some_and(|name| name == "pyproject.toml")
+        }) {
+            json!({"tool": {"tombi": selected}})
+        } else {
+            selected.clone()
+        };
+        crate::handler::ready(serializer.to_string_async(&selected))??
     };
     documents.insert(source.to_owned(), root_text.clone());
     tombi_fs::clear();
@@ -283,6 +312,7 @@ pub struct Configuration {
 pub struct SchemaContext {
     pub path: Option<std::path::PathBuf>,
     pub files: std::collections::BTreeMap<String, String>,
+    pub file_sources: std::collections::BTreeMap<String, String>,
     pub options: Option<tombi_config::SchemaOverviewOptions>,
 }
 
@@ -327,7 +357,11 @@ pub fn resolve_config(
     let file = TombiFile::take(&mut config, &mut diagnostics);
     let toml_version = resolve_version(&mut config, &file, &mut diagnostics);
     let schemas = resolve_schemas(&mut config, &file, &mut diagnostics);
-    if file.absolute_path.is_none()
+    if file
+        .schema
+        .as_ref()
+        .is_none_or(|schema| schema.enabled.unwrap_or_default().value())
+        && file.absolute_path.is_none()
         && schemas.iter().any(|schema| {
             schema
                 .path()
@@ -384,6 +418,7 @@ pub fn resolve_config(
         Configuration {
             schema_context: SchemaContext {
                 path: file.absolute_path,
+                file_sources: file.file_sources,
                 files: file.files,
                 options: file.schema,
             },

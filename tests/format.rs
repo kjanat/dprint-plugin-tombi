@@ -64,6 +64,16 @@ fn local_schemas_require_host_file_access() {
 }
 
 #[test]
+fn disabled_schemas_do_not_require_host_file_access() {
+    let result = resolve(
+        json!({"$configFile": {"path": "tombi.toml", "content": "{\"schema\":{\"enabled\":false},\"schemas\":[{\"path\":\"missing.json\",\"include\":[\"test.toml\"]}]}"}}),
+        &GlobalConfiguration::default(),
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(format(b"a=1\n", &result.config).is_ok());
+}
+
+#[test]
 fn invalid_schema_options_in_tombi_config_are_diagnosed() {
     let result = resolve(
         json!({"$configFile": {"path": "tombi.toml", "content": "{\"schema\":{\"enabled\":\"yes\"}}"}}),
@@ -407,8 +417,8 @@ fn looks_for_tombis_configuration_files_in_tombis_order() {
         [
             ".tombi.toml",
             "tombi.toml",
-            "pyproject.toml#tool.tombi",
-            ".config/tombi.toml"
+            ".config/tombi.toml",
+            "pyproject.toml#tool.tombi"
         ]
     );
 }

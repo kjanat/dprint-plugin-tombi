@@ -70,8 +70,14 @@ try {
   routes.set("/shared/base.json", JSON.stringify({ toml: { configFile: "./tombi.toml" } }));
   routes.set("/shared/tombi.toml", "extends = ['../defaults/tombi.toml']\n[format.rules]\nline-width = 24\n");
   routes.set("/defaults/tombi.toml", "[format.rules]\nstring-quote-style = 'single'\nline-width = 120\n");
-  await writeFile(join(directory, "dprint.json"), JSON.stringify({ plugins: [plugin], extends: `${origin}/config.json`, incremental: false, useTabs: true }));
-  await writeFile(join(directory, "tombi.toml"), `extends = ['${origin}/shared/tombi.toml']\n[format.rules]\nindent-style = 'tab'\n`);
+  await writeFile(
+    join(directory, "dprint.json"),
+    JSON.stringify({ plugins: [plugin], extends: `${origin}/config.json`, incremental: false, useTabs: true }),
+  );
+  await writeFile(
+    join(directory, "tombi.toml"),
+    `extends = ['${origin}/shared/tombi.toml']\n[format.rules]\nindent-style = 'tab'\n`,
+  );
   const filename = join(directory, "example.toml");
   await writeFile(filename, source);
   const expected = (await run(tombi, ["format", "--stdin-filename", filename, "-"])).stdout;
@@ -83,7 +89,9 @@ try {
   const before = new Map(requests);
   assert.equal((await run(kprint, ["fmt", "--stdin", filename])).stdout, actual);
   assert.deepEqual(requests, before, "The second invocation should use kprint's download cache");
-  console.log("Passed: remote config, redirect, relative configFile, remote extends, precedence, CLI parity and cached second invocation");
+  console.log(
+    "Passed: remote config, redirect, relative configFile, remote extends, precedence, CLI parity and cached second invocation",
+  );
 
   routes.set("/sorting/tombi.toml", "extends = ['../schemas/tombi.toml']\n");
   routes.set("/schemas/tombi.toml", "[[schemas]]\npath = './root.json'\ninclude = ['example.toml']\n");
@@ -106,12 +114,31 @@ try {
     join(directory, "dprint.json"),
     JSON.stringify({ plugins: [plugin], toml: { configFile: `${origin}/sorting/tombi.toml` }, incremental: false }),
   );
-  await writeFile(join(directory, "tombi.toml"), `[[schemas]]\npath = '${origin}/schemas/root.json'\ninclude = ['example.toml']\n`);
+  await writeFile(
+    join(directory, "tombi.toml"),
+    `[[schemas]]\npath = '${origin}/schemas/root.json'\ninclude = ['example.toml']\n`,
+  );
   const unsorted = "[settings]\nz=1\na=2\n";
   const sorted = (await run(kprint, ["fmt", "--stdin", filename], unsorted)).stdout;
   assert.equal(sorted, (await run(tombi, ["format", "--stdin-filename", filename, "-"], unsorted)).stdout);
   assert.ok(sorted.indexOf("a = 2") < sorted.indexOf("z = 1"), sorted);
   console.log("Passed: inherited relative schema URL, relative $ref and schema sorting parity");
+
+  redirects.set("/alias/root.json", "/schemas/root.json");
+  routes.set(
+    "/schema-redirect/tombi.toml",
+    `[[schemas]]\npath = '${origin}/alias/root.json'\ninclude = ['example.toml']\n`,
+  );
+  await writeFile(
+    join(directory, "dprint.json"),
+    JSON.stringify({
+      plugins: [plugin],
+      toml: { configFile: `${origin}/schema-redirect/tombi.toml` },
+      incremental: false,
+    }),
+  );
+  assert.equal((await run(kprint, ["fmt", "--stdin", filename], unsorted)).stdout, sorted);
+  console.log("Passed: relative $ref uses the schema redirect destination");
 
   redirects.set("/alias/tombi.toml", "/sorting/tombi.toml");
   routes.set("/redirect/tombi.toml", "extends = ['../alias/tombi.toml']\n");
@@ -125,7 +152,11 @@ try {
   routes.set("/custom/settings.toml", "[tool.tombi]\nextends = ['../shared/tombi.toml']\n");
   await writeFile(
     join(directory, "dprint.json"),
-    JSON.stringify({ plugins: [plugin], toml: { configFile: `${origin}/custom/settings.toml#tool.tombi` }, incremental: false }),
+    JSON.stringify({
+      plugins: [plugin],
+      toml: { configFile: `${origin}/custom/settings.toml#tool.tombi` },
+      incremental: false,
+    }),
   );
   assert.equal((await run(kprint, ["fmt", "--stdin", filename])).stdout, expected.replaceAll("\t", "  "));
   console.log("Passed: selected section in a remote config with a custom filename");
@@ -136,8 +167,66 @@ try {
   await writeFile(join(directory, ".config/tombi.toml"), "extends = ['base/tombi.toml']\n");
   await writeFile(join(directory, "base/tombi.toml"), `extends = ['${origin}/shared/tombi.toml']\n`);
   await writeFile(join(directory, "dprint.json"), JSON.stringify({ plugins: [plugin], incremental: false }));
-  assert.equal((await run(kprint, ["fmt", "--stdin", filename])).stdout, (await run(tombi, ["format", "--stdin-filename", filename, "-"])).stdout);
+  assert.equal(
+    (await run(kprint, ["fmt", "--stdin", filename])).stdout,
+    (await run(tombi, ["format", "--stdin-filename", filename, "-"])).stdout,
+  );
   console.log("Passed: .config/tombi.toml uses the project directory for relative extends");
+
+  await writeFile(join(directory, "pyproject.toml"), "[tool.tombi.format.rules]\nstring-quote-style = 'double'\n");
+  assert.equal(
+    (await run(kprint, ["fmt", "--stdin", filename])).stdout,
+    (await run(tombi, ["format", "--stdin-filename", filename, "-"])).stdout,
+  );
+  console.log("Passed: .config/tombi.toml takes precedence over pyproject.toml");
+
+  await writeFile(join(directory, "settings.toml"), "[tool.tombi]\nextends = ['base/tombi.toml']\n");
+  await writeFile(
+    join(directory, "dprint.json"),
+    JSON.stringify({ plugins: [plugin], toml: { configFile: "settings.toml#tool.tombi" }, incremental: false }),
+  );
+  assert.equal(
+    (await run(kprint, ["fmt", "--stdin", filename])).stdout,
+    (await run(tombi, ["format", "--stdin-filename", filename, "-"])).stdout,
+  );
+  console.log("Passed: local section selection applies inherited formatting");
+
+  await writeFile(
+    join(directory, "schema.json"),
+    JSON.stringify({
+      type: "object",
+      properties: {
+        settings: {
+          type: "object",
+          additionalProperties: { type: "integer" },
+          "x-tombi-table-keys-order": "ascending",
+        },
+      },
+    }),
+  );
+  await writeFile(
+    join(directory, "base/tombi.toml"),
+    "[[schemas]]\npath = 'schema.json'\ninclude = ['example.toml']\n",
+  );
+  await writeFile(join(directory, "dprint.json"), JSON.stringify({ plugins: [plugin], incremental: false }));
+  assert.equal(
+    (await run(kprint, ["fmt", "--stdin", filename], unsorted)).stdout,
+    (await run(tombi, ["format", "--stdin-filename", filename, "-"], unsorted)).stdout,
+  );
+  console.log("Passed: local inherited schemas use the root config directory");
+
+  await rm(join(directory, ".config/tombi.toml"));
+  await rm(join(directory, "pyproject.toml"));
+  await writeFile(
+    join(directory, "dprint.json"),
+    JSON.stringify({
+      plugins: [plugin],
+      toml: { schemas: [{ path: "schema.json", include: ["example.toml"] }] },
+      incremental: false,
+    }),
+  );
+  assert.equal((await run(kprint, ["fmt", "--stdin", filename], unsorted)).stdout, sorted);
+  console.log("Passed: inline schema configuration works without tombi.toml");
 
   for (
     const [name, config, pattern] of [
