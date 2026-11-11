@@ -111,6 +111,7 @@ impl SyncPluginHandler<Configuration> for TombiPluginHandler {
         config: ConfigKeyMap,
         global_config: &GlobalConfiguration,
     ) -> PluginResolveConfigurationResult<Configuration> {
+        self.store = None;
         let (config, diagnostics) = configuration::resolve_config(config, global_config);
         PluginResolveConfigurationResult {
             config,

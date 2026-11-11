@@ -227,7 +227,7 @@ fn resolve_inheritance(value: &Value, selected: &Value) -> anyhow::Result<Value>
             .schema_store(&store)
             .build();
         let selected = if value["absolutePath"].as_str().is_some_and(|path| {
-            std::path::Path::new(path)
+            crate::handler::formatter_path(std::path::Path::new(path))
                 .file_name()
                 .is_some_and(|name| name == "pyproject.toml")
         }) {
