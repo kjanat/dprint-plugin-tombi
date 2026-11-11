@@ -327,7 +327,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "dprint-core",
- "itertools",
+ "itertools 0.15.0",
  "schemars",
  "serde",
  "serde_json",
@@ -760,6 +760,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1127,7 +1136,7 @@ version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "dirs",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "serde",
  "serde_tombi_macros",
@@ -1313,7 +1322,7 @@ name = "tombi-accessor"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
- "itertools",
+ "itertools 0.14.0",
  "tombi-hashmap",
  "tombi-text",
  "tombi-toml-text",
@@ -1335,7 +1344,7 @@ name = "tombi-ast-syntax"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
- "itertools",
+ "itertools 0.14.0",
  "thiserror",
  "tombi-accessor",
  "tombi-ast",
@@ -1435,7 +1444,7 @@ name = "tombi-document"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
- "itertools",
+ "itertools 0.14.0",
  "serde",
  "thiserror",
  "tombi-date-time",
@@ -1463,7 +1472,7 @@ version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "chrono",
- "itertools",
+ "itertools 0.14.0",
  "thiserror",
  "tombi-accessor",
  "tombi-ast-syntax",
@@ -1481,7 +1490,7 @@ name = "tombi-formatter"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
- "itertools",
+ "itertools 0.14.0",
  "log",
  "thiserror",
  "tombi-ast-syntax",
@@ -1536,7 +1545,7 @@ name = "tombi-json"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
- "itertools",
+ "itertools 0.14.0",
  "serde",
  "thiserror",
  "tombi-hashmap",
@@ -1587,7 +1596,7 @@ version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "drop_bomb",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "thiserror",
  "tombi-ast-syntax",
@@ -1612,7 +1621,7 @@ dependencies = [
  "bytes",
  "futures",
  "glob",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "parking_lot",
  "serde",
@@ -1703,7 +1712,7 @@ source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0
 dependencies = [
  "addr",
  "email_address",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "serde",
  "thiserror",
@@ -1732,7 +1741,7 @@ name = "tombi-version-sort"
 version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
- "itertools",
+ "itertools 0.14.0",
 ]
 
 [[package]]
