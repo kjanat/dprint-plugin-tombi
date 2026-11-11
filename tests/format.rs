@@ -139,6 +139,26 @@ fn configuration_file_format_rules_are_validated_with_and_without_inheritance() 
 }
 
 #[test]
+fn invalid_file_rule_is_reported_when_plugin_setting_overrides_it() {
+    let content = json!({"extends": ["base.toml"], "format": {"rules": {"line-width": "wide"}}});
+    let result = resolve(
+        json!({"lineWidth": 80, "$configFile": {
+            "path": "tombi.toml",
+            "absolutePath": "C:/project/tombi.toml",
+            "source": "file:///C:/project/tombi.toml",
+            "text": "extends = ['base.toml']\n[format.rules]\nline-width = 'wide'\n",
+            "content": content.to_string()
+        }}),
+        &GlobalConfiguration::default(),
+    );
+    assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+    assert_eq!(
+        result.diagnostics[0].property_name,
+        "tombi.toml: format.rules.line-width"
+    );
+}
+
+#[test]
 fn invalid_schema_options_in_tombi_config_are_diagnosed() {
     let result = resolve(
         json!({"$configFile": {"path": "tombi.toml", "content": "{\"schema\":{\"enabled\":\"yes\"}}"}}),

@@ -425,6 +425,21 @@ pub fn resolve_config(
             message: "Unknown formatting rule.".into(),
         });
     }
+    for (key, value) in file
+        .rules
+        .iter()
+        .filter(|(key, _)| defaults.contains_key(*key))
+    {
+        if config.contains_key(&camel_case(key)) {
+            let candidate = Value::Object(Map::from_iter([(key.clone(), value.clone())]));
+            if let Err(error) = serde_json::from_value::<FormatRules>(candidate) {
+                diagnostics.push(ConfigurationDiagnostic {
+                    property_name: format!("{}: format.rules.{key}", file.path),
+                    message: error.to_string(),
+                });
+            }
+        }
+    }
     for upstream_key in defaults.keys() {
         let key = camel_case(upstream_key);
         // the plugin's own property, then Tombi's configuration file, then
