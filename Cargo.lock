@@ -334,7 +334,7 @@ dependencies = [
  "serde_tombi",
  "tombi-config",
  "tombi-formatter",
- "tombi-fs",
+ "tombi-fs 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=14838ecf5d53cf48e27a58f7d813a02075df0a58)",
  "tombi-schema-store",
  "tombi-uri",
 ]
@@ -1140,7 +1140,7 @@ dependencies = [
  "tombi-document",
  "tombi-document-tree-syntax",
  "tombi-formatter",
- "tombi-fs",
+ "tombi-fs 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f)",
  "tombi-hashmap",
  "tombi-parser",
  "tombi-schema-store",
@@ -1506,6 +1506,16 @@ dependencies = [
 [[package]]
 name = "tombi-fs"
 version = "0.0.0-dev"
+source = "git+https://github.com/kjanat/tombi?rev=14838ecf5d53cf48e27a58f7d813a02075df0a58#14838ecf5d53cf48e27a58f7d813a02075df0a58"
+dependencies = [
+ "dirs",
+ "glob",
+ "tokio",
+]
+
+[[package]]
+name = "tombi-fs"
+version = "0.0.0-dev"
 source = "git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f#31999a64609ad79b7c9daeca83bca0179943093f"
 dependencies = [
  "dirs",
@@ -1626,7 +1636,7 @@ dependencies = [
  "tombi-config",
  "tombi-diagnostic",
  "tombi-document-tree-syntax",
- "tombi-fs",
+ "tombi-fs 0.0.0-dev (git+https://github.com/kjanat/tombi?rev=31999a64609ad79b7c9daeca83bca0179943093f)",
  "tombi-future",
  "tombi-hashmap",
  "tombi-json",

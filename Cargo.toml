@@ -37,7 +37,7 @@ serde_tombi        = { git = "https://github.com/kjanat/tombi", rev = "31999a646
 # Formatter/parser algorithms are unchanged; see UPSTREAM.md for the exact diff.
 tombi-config       = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f", features = ["serde"] }
 tombi-formatter    = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f" }
-tombi-fs           = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f" }
+tombi-fs           = { git = "https://github.com/kjanat/tombi", rev = "14838ecf5d53cf48e27a58f7d813a02075df0a58" }
 tombi-schema-store = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f", default-features = false }
 tombi-uri          = { git = "https://github.com/kjanat/tombi", rev = "31999a64609ad79b7c9daeca83bca0179943093f" }
 
