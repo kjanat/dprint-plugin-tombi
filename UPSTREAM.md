@@ -3,8 +3,8 @@
 The formatter, parser, validator, configuration and date/time algorithms are
 Tombi v1.11.1, upstream commit `273ace37a1f7b86bc845271d91dfe285b0539e93`.
 
-The dependency uses commit `31999a64609ad79b7c9daeca83bca0179943093f` in the
-existing `kjanat/tombi` fork, on branch `dprint/v1.11.1-headless`. That branch
+The dependencies select branch `dprint/v1.11.1-headless` in `kjanat/tombi`.
+`Cargo.lock` pins commit `31999a64609ad79b7c9daeca83bca0179943093f`. That branch
 is based directly on the upstream release, not the old fork's development
 history. It applies the four portability commits from `dprint/v1.9.8-headless`
 to Tombi v1.11.1, then moves `serde_tombi`'s test-only Chrono dependency to
@@ -40,9 +40,9 @@ Only eleven upstream files differ:
   unification from other crates; the headless Wasm build has none and didn't
   compile.
 
-The plugin supplies an HTTP client that reads files downloaded by kprint. Tombi's
-Wasm build has no disk cache. The artifact
-must import only dprint host functions, not JavaScript, WASI or browser APIs.
+The plugin supplies an HTTP client that reads files downloaded by kprint.
+Tombi's Wasm build has no disk cache. The artifact must import only dprint host
+functions, not JavaScript, WASI or browser APIs.
 
 ## Why there is no post-link workaround
 
@@ -55,8 +55,16 @@ rewriting, import stubbing, or copied formatter in this repository.
 ## Updating
 
 Prefer upstream non-browser feature support when it becomes available. Until
-then, rebase this small portability delta onto the chosen upstream release,
-point all Tombi dependencies at the resulting immutable commit, and regenerate
-Cargo.lock and schema.json. Require native tests, strict native/WASM Clippy, and
-the unchanged dprint-only import audit plus real CLI execution to pass. Do not
-expand the fork into an independently maintained formatting engine.
+then, rebase this small portability delta onto the chosen upstream release, and
+push it as `dprint/vX.Y.Z-headless`. Renovate opens one pull request that points
+all Tombi dependencies at that branch. On it, update Cargo.lock and regenerate
+schema.json:
+
+```sh
+cargo update -p serde_tombi -p tombi-config -p tombi-formatter -p tombi-fs -p tombi-schema-store -p tombi-uri
+cargo run --locked --bin generate-schema --features schema
+```
+
+Require native tests, strict native/WASM Clippy, and the unchanged dprint-only
+import audit plus real CLI execution to pass. Do not expand the fork into an
+independently maintained formatting engine.

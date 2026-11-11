@@ -31,13 +31,19 @@ function receive(length) {
   return new TextDecoder().decode(new Uint8Array(wasm.memory.buffer, wasm.get_shared_bytes_ptr(), length));
 }
 function formatInInstance(settings, source) {
+  registerConfig(1, settings);
+  return formatRegistered(1, source);
+}
+function registerConfig(id, settings) {
   send(JSON.stringify({ global: {}, plugin: settings }));
-  wasm.register_config(1);
-  assert.deepEqual(JSON.parse(receive(wasm.get_config_diagnostics(1))), []);
+  wasm.register_config(id);
+  assert.deepEqual(JSON.parse(receive(wasm.get_config_diagnostics(id))), []);
+}
+function formatRegistered(id, source) {
   send("C:\\project\\example.toml");
   wasm.set_file_path();
   send(source);
-  const result = wasm.format(1);
+  const result = wasm.format(id);
   if (result === 2) throw new Error(receive(wasm.get_error_text()));
   assert.ok(result === 0 || result === 1);
   return result === 0 ? source : receive(wasm.get_formatted_text());
@@ -47,6 +53,18 @@ const sortingSchema = JSON.stringify({
   additionalProperties: { type: "integer" },
   "x-tombi-table-keys-order": "ascending",
 });
+assert.equal(
+  formatInInstance({
+    $configFile: {
+      path: "tombi.toml",
+      content: JSON.stringify({ schema: { enabled: false } }),
+      files: { "https://example.com/schema": "not JSON" },
+      fileSources: { "https://example.com/schema": "https://example.com/schema.json" },
+    },
+  }, "a=1\n"),
+  "a = 1\n",
+  "Disabled schemas must not parse malformed redirected resources",
+);
 const inherited = {
   $configFile: {
     path: "pyproject.toml#tool.tombi",
@@ -72,6 +90,63 @@ for (const name of ["first", "second"]) {
   );
 }
 console.log("WASM Windows pyproject inheritance and schema reload passed.");
+registerConfig(2, inherited);
+registerConfig(3, { stringQuoteStyle: "double" });
+assert.equal(formatRegistered(2, "name=\"demo\"\n"), "name = 'demo'\n");
+assert.equal(formatRegistered(3, "name='demo'\n"), "name = \"demo\"\n");
+assert.equal(
+  formatRegistered(2, "#:schema second.json\n\nz=1\na=2\n"),
+  "#:schema second.json\n\na = 2\nz = 1\n",
+  "Returning to config A must restore its previously unused schema",
+);
+send(JSON.stringify({
+  global: {},
+  plugin: {
+    $configFile: {
+      path: "tombi.toml",
+      source: "file:///C:/project/tombi.toml",
+      absolutePath: "C:\\project\\tombi.toml",
+      text: "extends = ['missing.toml']\n",
+      content: JSON.stringify({ extends: ["missing.toml"] }),
+    },
+  },
+}));
+wasm.register_config(3);
+assert.notDeepEqual(JSON.parse(receive(wasm.get_config_diagnostics(3))), []);
+assert.equal(
+  formatRegistered(2, "#:schema first.json\n\nz=1\na=2\n"),
+  "#:schema first.json\n\na = 2\nz = 1\n",
+  "Failed config B must not remove config A's schema files",
+);
+for (const plugin of [{}, { lineWidth: 80 }]) {
+  send(JSON.stringify({
+    global: {},
+    plugin: {
+      ...plugin,
+      $configFile: {
+        path: "tombi.toml",
+        source: "file:///C:/project/tombi.toml",
+        absolutePath: "C:\\project\\tombi.toml",
+        text: "extends = ['base/tombi.toml']\n",
+        content: JSON.stringify({ extends: ["base/tombi.toml"] }),
+        documents: {
+          "file:///C:/project/base/tombi.toml": {
+            source: "file:///C:/project/base/tombi.toml",
+            text: "[format.rules]\nline-width = 'wide'\n",
+          },
+        },
+      },
+    },
+  }));
+  wasm.register_config(4);
+  const diagnostics = JSON.parse(receive(wasm.get_config_diagnostics(4)));
+  assert.equal(diagnostics.length, 1, JSON.stringify(diagnostics));
+  assert.match(
+    diagnostics[0].message,
+    /base\/tombi\.toml.*"wide"/,
+    `An invalid inherited rule must be reported, plugin settings ${JSON.stringify(plugin)}`,
+  );
+}
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const dir = mkdtempSync(join(tmpdir(), "dprint-tombi-"));
 const configPath = join(dir, "dprint.json");

@@ -1,7 +1,7 @@
 name: Release
 
 # A pushed tag is released as it is. A push to master that updates Tombi (the
-# revision of the tombi-* dependencies in Cargo.toml) is released as the next
+# resolved Tombi commit in Cargo.lock) is released as the next
 # patch version: the first release is the version in Cargo.toml. Only its tag
 # is pushed, on a commit that bumps the version on top of master, as the
 # master ruleset requires CI for every push and GitHub Actions can't bypass
@@ -10,7 +10,7 @@ on:
   push:
     tags: ["[0-9]+.[0-9]+.[0-9]+"]
     branches: [master]
-    paths: [Cargo.toml]
+    paths: [Cargo.toml, Cargo.lock]
 permissions: { contents: read }
 concurrency: { group: release, cancel-in-progress: false }
 jobs:
@@ -25,6 +25,7 @@ jobs:
       - name: The tag to release
         id: tag
         shell: python
+        env: { BEFORE: "${{ github.event.before }}" }
         run: |
           import os
           import re
@@ -42,19 +43,21 @@ jobs:
 
 
           def tombi_revisions(revision):
-              manifest = tomllib.loads(git("show", f"{revision}:Cargo.toml"))
-              return {
-                  name: dependency.get("rev")
-                  for name, dependency in manifest.get("dependencies", {}).items()
-                  if name.startswith("tombi-") and isinstance(dependency, dict)
-              }
+              lock = tomllib.loads(git("show", f"{revision}:Cargo.lock"))
+              commits = set()
+              for package in lock["package"]:
+                  source = package.get("source", "")
+                  match = re.fullmatch(r"git\+https://github\.com/kjanat/tombi(?:\?[^#]*)?#([0-9a-f]{40})", source)
+                  if match:
+                      commits.add(match.group(1))
+              return sorted(commits)
 
 
           if os.environ["GITHUB_REF_TYPE"] == "tag":
               output(os.environ["GITHUB_REF_NAME"])
               raise SystemExit(0)
 
-          before, after = tombi_revisions("HEAD^1"), tombi_revisions("HEAD")
+          before, after = tombi_revisions(os.environ["BEFORE"]), tombi_revisions("HEAD")
           if before == after:
               print("Tombi isn't updated, so there's nothing to release")
               output("")

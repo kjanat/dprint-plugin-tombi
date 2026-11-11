@@ -1,8 +1,5 @@
 name: Tombi upstream
 
-# Renovate doesn't update Tombi: it comes from a branch of the kjanat/tombi
-# fork that carries a portability delta (see UPSTREAM.md). When upstream has
-# a newer release, an issue asks for the delta to be rebased onto it.
 on:
   schedule: [{ cron: "0 6 * * 1" }]
   workflow_dispatch:

@@ -1,0 +1,13 @@
+#:schema ../actionlint.schema.json
+
+[files]
+excludes = ["**/testdata/**"]
+
+[local-actions]
+"./.published-action-test" = "./applications/github-action/tests/testdata/published-action"
+
+[[ignores]]
+rule = "missing-local-action"
+file = ".github/workflows/ci.yml"
+uses = "./.actionlint-action-test"
+reason = "Release bundle built during CI."
