@@ -8,7 +8,7 @@ with dprint. Do not add a JS runtime, process plugin, copied formatter or
 post-link import stubs. All Tombi dependencies use the same fork branch.
 `Cargo.lock` records the resolved commit.
 
-The dependency is based directly on upstream v1.11.1 with a small portability
+The dependency is based directly on an upstream release with a small portability
 delta in the existing Tombi fork. See UPSTREAM.md for provenance and
 hash-seeding tradeoffs. Keep the formatter/parser algorithms unchanged. Prefer
 upstream non-browser feature support when available rather than growing the
@@ -51,11 +51,11 @@ findings instead of weakening lint policy. The integration script needs dprint
 on PATH or `DPRINT_BIN`; it rejects non-dprint imports and tests the real CLI.
 Native tests alone are not evidence of WASM compatibility.
 
-Run `schema-parity.mjs` with Tombi 1.11.1 and a kprint build that supports
-schema files. `KPRINT_BIN` and `TOMBI_BIN` select those executables. This test
-compares their output using the same configuration and schemas. The remote
-comparison also checks relative URLs, redirects, inheritance, download caching
-and invalid references.
+Run `schema-parity.mjs` with the Tombi release in `Cargo.toml` and a kprint
+build that supports schema files. `KPRINT_BIN` and `TOMBI_BIN` select those
+executables. This test compares their output using the same configuration and
+schemas. The remote comparison also checks relative URLs, redirects,
+inheritance, download caching and invalid references.
 
 ## Generated files and release
 
