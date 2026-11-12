@@ -86,7 +86,7 @@ jobs:
           path: kprint-source
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
-        with: { toolchain: "1.99" }
+        with: { toolchain: "1.100" }
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with: { workspaces: kprint-source, key: "kprint-1a71599f4f7bceca1489c2bfb37664ee0e9686f3" }
       - name: Build the pinned kprint revision
