@@ -81,7 +81,7 @@ jobs:
           cargo run --locked --bin generate-schema --features schema
           commit=$(grep -oE 'git\+https://github\.com/kjanat/tombi\?[^#]*#[0-9a-f]{40}' Cargo.lock | head -1 | grep -oE '[0-9a-f]{40}$')
           echo "COMMIT=${commit:0:7}" >> "${GITHUB_ENV}"
-      - uses: kjanat/beepboop/actions/pull-request@v1
+      - uses: kjanat/beepboop/actions/pull-request@dde69af5b5d106bd593fb4dc155cc70ca3fbe475 # v1.5.3
         with:
           branch: tombi/update
           title: "fix(deps): update Tombi to v${{ steps.version.outputs.version }} (${{ env.COMMIT }})"
