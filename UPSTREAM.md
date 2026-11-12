@@ -56,15 +56,10 @@ rewriting, import stubbing, or copied formatter in this repository.
 
 Prefer upstream non-browser feature support when it becomes available. Until
 then, rebase this small portability delta onto the chosen upstream release, and
-push it as `dprint/vX.Y.Z-headless`. Renovate opens one pull request that points
-all Tombi dependencies at that branch. On it, update Cargo.lock and regenerate
-schema.json:
-
-```sh
-cargo update -p serde_tombi -p tombi-config -p tombi-formatter -p tombi-fs -p tombi-schema-store -p tombi-uri
-cargo run --locked --bin generate-schema --features schema
-```
-
-Require native tests, strict native/WASM Clippy, and the unchanged dprint-only
-import audit plus real CLI execution to pass. Do not expand the fork into an
-independently maintained formatting engine.
+push it as `dprint/vX.Y.Z-headless`. The `update` job of `tombi-upstream.yml`
+(weekly, or run it by hand) then opens one pull request from the Beepboop App
+that points every Tombi dependency at the newest such branch, updates
+Cargo.lock, schema.json, the version in the docs and `.github/tombi-cli.sha256`.
+Merging it releases the plugin. Require native tests, strict native/WASM Clippy,
+and the unchanged dprint-only import audit plus real CLI execution to pass. Do
+not expand the fork into an independently maintained formatting engine.

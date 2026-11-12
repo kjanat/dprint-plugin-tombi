@@ -35,3 +35,71 @@ jobs:
           fi
           gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" \
             --body "Tombi ${latest} is out; the plugin uses ${current}. See \"Updating\" in UPSTREAM.md."
+
+  # Moves Tombi to the newest dprint/vX.Y.Z-headless branch of the fork, or to
+  # the newest commit of the current one, in a pull request from the Beepboop
+  # App. Its token needs a run the owner started, so no push trigger.
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # Beepboop App token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Select the newest fork branch
+        id: version
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          current=$(grep -oE 'dprint/v[0-9]+\.[0-9]+\.[0-9]+-headless' Cargo.toml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          latest=$(git ls-remote --heads https://github.com/kjanat/tombi 'dprint/v*-headless' \
+            | grep -oE 'dprint/v[0-9]+\.[0-9]+\.[0-9]+-headless$' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1)
+          if [[ -z "${current}" || -z "${latest}" ]]; then
+            echo "::error::Couldn't read the current or the newest fork branch"
+            exit 1
+          fi
+          echo "Plugin on ${current}, newest fork branch ${latest}"
+          echo "version=${latest}" >> "${GITHUB_OUTPUT}"
+          if [[ "${latest}" == "${current}" || "$(printf '%s\n%s\n' "${current}" "${latest}" | sort -V | tail -1)" == "${current}" ]]; then
+            exit 0
+          fi
+          upstream=$(git ls-remote https://github.com/tombi-toml/tombi "refs/tags/v${latest}^{}" | cut -f1)
+          archive="tombi-cli-${latest}-x86_64-unknown-linux-musl.tar.gz"
+          digest=$(gh api "repos/tombi-toml/tombi/releases/tags/v${latest}" \
+            --jq ".assets[] | select(.name == \"${archive}\") | .digest" | sed -n 's/^sha256://p')
+          if [[ -z "${upstream}" || -z "${digest}" ]]; then
+            echo "::error::Couldn't read upstream v${latest}'s commit or ${archive}'s digest"
+            exit 1
+          fi
+          old_upstream=$(grep -oE '[0-9a-f]{40}' UPSTREAM.md | head -1)
+          sed -i "s/${old_upstream}/${upstream}/" UPSTREAM.md
+          sed -i "s/${current//./\\.}/${latest}/g" Cargo.toml UPSTREAM.md README.md AGENTS.md
+          echo "${digest}  ${archive}" > .github/tombi-cli.sha256
+          if git grep -n -F "${current}" -- ':!Cargo.lock'; then
+            echo "::error::Tombi ${current} is still mentioned above; teach this step to update it"
+            exit 1
+          fi
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with: { toolchain: stable }
+      - name: Update Cargo.lock and schema.json
+        run: |
+          cargo update -p serde_tombi -p tombi-config -p tombi-formatter -p tombi-fs -p tombi-schema-store -p tombi-uri
+          cargo run --locked --bin generate-schema --features schema
+          commit=$(grep -oE 'git\+https://github\.com/kjanat/tombi\?[^#]*#[0-9a-f]{40}' Cargo.lock | head -1 | grep -oE '[0-9a-f]{40}$')
+          echo "COMMIT=${commit:0:7}" >> "${GITHUB_ENV}"
+      - uses: kjanat/beepboop/actions/pull-request@v1
+        with:
+          branch: tombi/update
+          title: "fix(deps): update Tombi to v${{ steps.version.outputs.version }} (${{ env.COMMIT }})"
+          body: |
+            Moves every Tombi crate to `dprint/v${{ steps.version.outputs.version }}-headless` of kjanat/tombi at ${{ env.COMMIT }}.
+            Merging it releases the plugin (release.yml).
+          add-paths: |
+            Cargo.toml
+            Cargo.lock
+            schema.json
+            UPSTREAM.md
+            README.md
+            AGENTS.md
+            .github/tombi-cli.sha256

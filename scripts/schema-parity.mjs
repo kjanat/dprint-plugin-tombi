@@ -70,7 +70,12 @@ function compare(label, filename, input = source) {
 }
 
 try {
-  assert.match(run(tombi, ["--version"]), /\b1\.11\.1\b/, "Use Tombi 1.11.1 for this comparison");
+  const version = readFileSync(new URL("../Cargo.toml", import.meta.url), "utf8")
+    .match(/dprint\/v(\d+\.\d+\.\d+)-headless/)[1];
+  assert.ok(
+    run(tombi, ["--version"]).split(/\s+/).includes(version),
+    `Use Tombi ${version}, which the plugin is built from, for this comparison`,
+  );
   mkdirSync(join(directory, "parts"));
   writeFileSync(join(directory, "schema.json"), JSON.stringify(schema));
   writeFileSync(
