@@ -2,8 +2,9 @@
 
 A dprint TOML formatter using the same Rust formatting engine as
 [Tombi's `tombi-wasm-lib`](https://tombi-toml.github.io/tombi/docs/wasm/tombi-wasm-lib).
-The engine is Tombi **v1.11.1**. The plugin exposes dprint's WASM ABI; it does
-not embed a JavaScript runtime or call a separate Tombi executable.
+The engine is the Tombi release named by the `dprint/vX.Y.Z-headless` branch in
+`Cargo.toml`. The plugin exposes dprint's WASM ABI; it does not embed a
+JavaScript runtime or call a separate Tombi executable.
 
 ## Install
 
@@ -195,8 +196,8 @@ runs it with the latest kjanat/dprint and upstream dprint, and checks the
 compiled module's imports before running formatting, dates, directives,
 idempotence, diagnostics, associations and overrides through the CLI.
 
-Compare the built plugin with Tombi 1.11.1 using the same configuration and
-local schemas:
+Compare the built plugin with that Tombi release using the same configuration
+and local schemas:
 
 ```sh
 node scripts/schema-parity.mjs

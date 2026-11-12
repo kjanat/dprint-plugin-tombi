@@ -33,7 +33,7 @@ serde_json         = "1"
 serde_tombi        = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless", default-features = false, features = [
   "wasm"
 ] }
-# Upstream Tombi v1.11.1 with a narrow headless-build portability delta.
+# The Tombi release in the branch name, with a narrow headless-build portability delta.
 # Formatter/parser algorithms are unchanged; see UPSTREAM.md for the exact diff.
 tombi-config       = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless", features = ["serde"] }
 tombi-formatter    = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless" }

@@ -18,7 +18,7 @@ jobs:
       - name: Open an issue for a newer Tombi release
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
-          current=$(grep -oE '^Tombi v[0-9]+\.[0-9]+\.[0-9]+' UPSTREAM.md | head -1 | cut -d' ' -f2)
+          current=v$(grep -oE 'dprint/v[0-9]+\.[0-9]+\.[0-9]+-headless' Cargo.toml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
           latest=$(gh api repos/tombi-toml/tombi/releases/latest --jq .tag_name)
           echo "Plugin on ${current}, latest ${latest}"
           if [[ -z "${current}" || -z "${latest}" ]]; then
@@ -64,22 +64,15 @@ jobs:
           if [[ "${latest}" == "${current}" || "$(printf '%s\n%s\n' "${current}" "${latest}" | sort -V | tail -1)" == "${current}" ]]; then
             exit 0
           fi
-          upstream=$(git ls-remote https://github.com/tombi-toml/tombi "refs/tags/v${latest}^{}" | cut -f1)
           archive="tombi-cli-${latest}-x86_64-unknown-linux-musl.tar.gz"
           digest=$(gh api "repos/tombi-toml/tombi/releases/tags/v${latest}" \
             --jq ".assets[] | select(.name == \"${archive}\") | .digest" | sed -n 's/^sha256://p')
-          if [[ -z "${upstream}" || -z "${digest}" ]]; then
-            echo "::error::Couldn't read upstream v${latest}'s commit or ${archive}'s digest"
+          if [[ -z "${digest}" ]]; then
+            echo "::error::Couldn't read the digest of upstream v${latest}'s ${archive}"
             exit 1
           fi
-          old_upstream=$(grep -oE '[0-9a-f]{40}' UPSTREAM.md | head -1)
-          sed -i "s/${old_upstream}/${upstream}/" UPSTREAM.md
-          sed -i "s/${current//./\\.}/${latest}/g" Cargo.toml UPSTREAM.md README.md AGENTS.md
+          sed -i "s|dprint/v${current}-headless|dprint/v${latest}-headless|g" Cargo.toml
           echo "${digest}  ${archive}" > .github/tombi-cli.sha256
-          if git grep -n -F "${current}" -- ':!Cargo.lock'; then
-            echo "::error::Tombi ${current} is still mentioned above; teach this step to update it"
-            exit 1
-          fi
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with: { toolchain: stable }
       - name: Update Cargo.lock and schema.json
@@ -99,7 +92,4 @@ jobs:
             Cargo.toml
             Cargo.lock
             schema.json
-            UPSTREAM.md
-            README.md
-            AGENTS.md
             .github/tombi-cli.sha256

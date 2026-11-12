@@ -1,16 +1,15 @@
 # Upstream engine and portability delta
 
 The formatter, parser, validator, configuration and date/time algorithms are
-Tombi v1.11.1, upstream commit `273ace37a1f7b86bc845271d91dfe285b0539e93`.
-
-The dependencies select branch `dprint/v1.11.1-headless` in `kjanat/tombi`.
-`Cargo.lock` pins commit `31999a64609ad79b7c9daeca83bca0179943093f`. That branch
-is based directly on the upstream release, not the old fork's development
-history. It applies the four portability commits from `dprint/v1.9.8-headless`
-to Tombi v1.11.1, then moves `serde_tombi`'s test-only Chrono dependency to
+those of the upstream Tombi release `vX.Y.Z`. The dependencies in `Cargo.toml`
+select branch `dprint/vX.Y.Z-headless` in `kjanat/tombi`, and `Cargo.lock` pins
+its commit. That branch is based directly on the upstream release tag, not the
+old fork's development history. It carries the portability commits from the
+previous branch, then moves `serde_tombi`'s test-only Chrono dependency to
 `dev-dependencies`.
 
-[Review the complete eleven-file portability delta](https://github.com/kjanat/tombi/compare/273ace37a1f7b86bc845271d91dfe285b0539e93...31999a64609ad79b7c9daeca83bca0179943093f).
+Review the delta by comparing the upstream tag with the branch:
+`https://github.com/tombi-toml/tombi/compare/vX.Y.Z...kjanat:tombi:dprint/vX.Y.Z-headless`.
 
 Only eleven upstream files differ:
 
@@ -59,7 +58,7 @@ then, rebase this small portability delta onto the chosen upstream release, and
 push it as `dprint/vX.Y.Z-headless`. The `update` job of `tombi-upstream.yml`
 (weekly, or run it by hand) then opens one pull request from the Beepboop App
 that points every Tombi dependency at the newest such branch, updates
-Cargo.lock, schema.json, the version in the docs and `.github/tombi-cli.sha256`.
-Merging it releases the plugin. Require native tests, strict native/WASM Clippy,
-and the unchanged dprint-only import audit plus real CLI execution to pass. Do
-not expand the fork into an independently maintained formatting engine.
+Cargo.lock, schema.json and `.github/tombi-cli.sha256`. Merging it releases the
+plugin. Require native tests, strict native/WASM Clippy, and the unchanged
+dprint-only import audit plus real CLI execution to pass. Do not expand the fork
+into an independently maintained formatting engine.
