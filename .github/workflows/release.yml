@@ -146,7 +146,8 @@ jobs:
   release:
     needs: [plan, verify]
     runs-on: ubuntu-latest
-    permissions: { contents: write, id-token: write }
+    permissions: { contents: write }
+    outputs: { url: "${{ steps.publish.outputs.url }}" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, ref: "${{ needs.plan.outputs.tag }}" }
@@ -190,27 +191,33 @@ jobs:
           test -n "$url"
           printf '%s\n' "$url"
           printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+  report:
+    needs: [plan, release]
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.plan.outputs.tag != '' }}
+    runs-on: ubuntu-latest
+    permissions: { id-token: write }
+    steps:
       - name: Record the publication outcome
-        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
         id: publication
         env:
           TAG: ${{ needs.plan.outputs.tag }}
-          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
-          RELEASE_URL: ${{ steps.publish.outputs.url }}
+          PUBLISH_RESULT: ${{ needs.release.result }}
+          RELEASE_URL: ${{ needs.release.outputs.url }}
         run: |
           report=$(jq -cn \
             --arg repository "$GITHUB_REPOSITORY" \
             --arg version "$TAG" \
-            --arg result "$PUBLISH_OUTCOME" \
+            --arg result "$PUBLISH_RESULT" \
             --arg url "$RELEASE_URL" '
               [{id: ("github-release:" + $repository), manager: "github-release", name: $repository, version: $version}
-               + (if $result == "success" and $url != ""
+               + (if $url != ""
                   then {outcome: "succeeded", url: $url}
+                  elif $result == "cancelled" then {outcome: "uncertain"}
+                  elif $result == "skipped" then {outcome: "skipped"}
                   else {outcome: "failed"}
                   end)]')
           printf 'report=%s\n' "$report" >> "$GITHUB_OUTPUT"
       - name: Report the GitHub release
-        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && steps.publication.outcome == 'success' }}
         uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ inputs.beepboop_execution_id }}
