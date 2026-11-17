@@ -30,16 +30,16 @@ itertools          = "0.15"
 schemars           = { version = "1.2.1", optional = true }
 serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
-serde_tombi        = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless", default-features = false, features = [
+serde_tombi        = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.2-headless", default-features = false, features = [
   "wasm"
 ] }
 # The Tombi release in the branch name, with a narrow headless-build portability delta.
 # Formatter/parser algorithms are unchanged; see UPSTREAM.md for the exact diff.
-tombi-config       = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless", features = ["serde"] }
-tombi-formatter    = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless" }
-tombi-fs           = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless" }
-tombi-schema-store = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless", default-features = false }
-tombi-uri          = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless" }
+tombi-config       = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.2-headless", features = ["serde"] }
+tombi-formatter    = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.2-headless" }
+tombi-fs           = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.2-headless" }
+tombi-schema-store = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.2-headless", default-features = false }
+tombi-uri          = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.2-headless" }
 toml_edit          = { version = "0.25", default-features = false, features = ["display", "serde"] }
 
 [lints.clippy]
