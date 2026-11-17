@@ -9,18 +9,43 @@
         "kind": "tags",
         "prefix": ""
       },
+      "versionFiles": [
+        {
+          "path": "Cargo.toml",
+          "format": "toml",
+          "key": ["package", "version"]
+        }
+      ],
+      "startFrom": [{ "via": "cli" }, { "via": "dashboard" }],
+      "prepare": {
+        "strategy": "managed",
+        "versionLands": "via-version-pr",
+        "workflow": {
+          "file": "prepare-release.yml",
+          "mode": "dispatch",
+          "ref": "refs/heads/master"
+        }
+      },
+      "promote": {
+        "workflow": {
+          "file": "release.yml",
+          "mode": "dispatch",
+          "ref": "refs/heads/master",
+          "publications": ["github-release:kjanat/dprint-plugin-tombi"],
+          "refs": { "phase": "version", "prefix": "", "signed": true }
+        }
+      },
       "workflows": {
-        "release": {
+        "tag-release": {
           "file": "release.yml",
           "mode": "observe",
           "ref": "refs/tags/*",
           "publications": ["pkg:github/kjanat/dprint-plugin-tombi"]
         },
-        "release-2": {
+        "tombi-update": {
           "file": "release.yml",
           "mode": "observe",
-          "ref": "refs/heads/master",
-          "publications": []
+          "ref": "refs/heads/master"
         }
       }
     }
