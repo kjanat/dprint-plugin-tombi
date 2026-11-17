@@ -36,9 +36,8 @@ jobs:
           gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" \
             --body "Tombi ${latest} is out; the plugin uses ${current}. See \"Updating\" in UPSTREAM.md."
 
-  # Use this when an engine update also changes the generated schema.
+  # Update the engine dependencies, lockfile, and generated schema together.
   update:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

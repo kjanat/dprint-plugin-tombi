@@ -8,18 +8,6 @@
     "enabled": true,
     "schedule": ["before 6am"]
   },
-  "customManagers": [
-    {
-      "customType": "regex",
-      "managerFilePatterns": ["/^Cargo\\.toml$/"],
-      "matchStrings": [
-        "(?<depName>[\\w-]+)\\s*=\\s*\\{\\s*git\\s*=\\s*\"https://github\\.com/kjanat/tombi\",\\s*branch\\s*=\\s*\"(?<currentValue>dprint/v[0-9]+\\.[0-9]+\\.[0-9]+-headless)\""
-      ],
-      "datasourceTemplate": "git-refs",
-      "packageNameTemplate": "https://github.com/kjanat/tombi",
-      "versioningTemplate": "regex:^dprint/v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-headless$"
-    }
-  ],
   "packageRules": [
     {
       "description": "Merge non-major updates with GitHub's auto-merge, which waits for the CI checks the master ruleset requires.",
@@ -32,13 +20,6 @@
       "description": "Require dashboard approval before opening major upgrade PRs.",
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true
-    },
-    {
-      "description": "Update all Tombi crates together and leave schema changes for review.",
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["https://github.com/kjanat/tombi"],
-      "groupName": "Tombi",
-      "automerge": false
     }
   ]
 }
