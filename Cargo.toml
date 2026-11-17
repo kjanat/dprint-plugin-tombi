@@ -40,6 +40,7 @@ tombi-formatter    = { git = "https://github.com/kjanat/tombi", branch = "dprint
 tombi-fs           = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless" }
 tombi-schema-store = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless", default-features = false }
 tombi-uri          = { git = "https://github.com/kjanat/tombi", branch = "dprint/v1.11.1-headless" }
+toml_edit          = { version = "0.25", default-features = false, features = ["display", "serde"] }
 
 [lints.clippy]
 all                     = { level = "deny", priority = -1 }
