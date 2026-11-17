@@ -94,7 +94,10 @@ try {
   );
 
   routes.set("/sorting/tombi.toml", "extends = ['../schemas/tombi.toml']\n");
-  routes.set("/schemas/tombi.toml", "[[schemas]]\npath = './root.json'\ninclude = ['example.toml']\n");
+  routes.set(
+    "/schemas/tombi.toml",
+    "[[schemas]]\npath = './root.json'\ninclude = ['example.toml']\nlint.rules = { deprecated = 'off' }\n",
+  );
   routes.set(
     "/schemas/root.json",
     JSON.stringify({
@@ -118,6 +121,9 @@ try {
     join(directory, "tombi.toml"),
     `[[schemas]]\npath = '${origin}/schemas/root.json'\ninclude = ['example.toml']\n`,
   );
+  const resolved = JSON.parse((await run(kprint, ["resolved-config"])).stdout);
+  assert.equal(resolved.toml.schemas[0].path, `${origin}/schemas/root.json`);
+  assert.equal(resolved.toml.schemas[0].lint.rules.deprecated, "off");
   const unsorted = "[settings]\nz=1\na=2\n";
   const sorted = (await run(kprint, ["fmt", "--stdin", filename], unsorted)).stdout;
   assert.equal(sorted, (await run(tombi, ["format", "--stdin-filename", filename, "-"], unsorted)).stdout);

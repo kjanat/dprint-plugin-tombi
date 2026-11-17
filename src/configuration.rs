@@ -192,10 +192,6 @@ fn resolve_urls(text: &str, source: &str) -> anyhow::Result<String> {
 }
 
 fn serialize_remote_config(content: &mut Value, source: &str) -> anyhow::Result<String> {
-    let store = tombi_schema_store::SchemaStore::new_with_options(tombi_schema_store::Options {
-        offline: Some(true),
-        ..Default::default()
-    });
     let base = source.parse::<tombi_uri::Uri>()?;
     if let Some(extends) = content.get_mut("extends").and_then(Value::as_array_mut) {
         for path in extends {
@@ -213,12 +209,9 @@ fn serialize_remote_config(content: &mut Value, source: &str) -> anyhow::Result<
             }
         }
     }
-    let serializer = serde_tombi::Serializer::builder()
-        .schema_store(&store)
-        .build();
-    Ok(crate::handler::ready(
-        serializer.to_string_async(&content),
-    )??)
+    // The intermediate TOML is only read by the config loader. Tombi's
+    // serializer also formats its output and can panic on nested schema tables.
+    Ok(toml_edit::ser::to_string(content)?)
 }
 
 fn resolve_inheritance(value: &Value, selected: &Value) -> anyhow::Result<Value> {
@@ -252,14 +245,6 @@ fn resolve_inheritance(value: &Value, selected: &Value) -> anyhow::Result<Value>
     let root_text = if remote {
         serialize_remote_config(&mut selected.clone(), source)?
     } else {
-        let store =
-            tombi_schema_store::SchemaStore::new_with_options(tombi_schema_store::Options {
-                offline: Some(true),
-                ..Default::default()
-            });
-        let serializer = serde_tombi::Serializer::builder()
-            .schema_store(&store)
-            .build();
         let selected = if value["absolutePath"].as_str().is_some_and(|path| {
             crate::handler::formatter_path(std::path::Path::new(path))
                 .file_name()
@@ -269,7 +254,7 @@ fn resolve_inheritance(value: &Value, selected: &Value) -> anyhow::Result<Value>
         } else {
             selected.clone()
         };
-        crate::handler::ready(serializer.to_string_async(&selected))??
+        toml_edit::ser::to_string(&selected)?
     };
     documents.insert(source.to_owned(), root_text.clone());
     tombi_fs::clear();
