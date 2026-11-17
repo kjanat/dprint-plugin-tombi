@@ -1,0 +1,29 @@
+{
+  "$schema": "https://beepboop.kjanat.dev/schema/v1.json",
+  "streams": {
+    "main": {
+      "packages": [],
+      "versionScope": "one-for-stream",
+      "mustPublish": [],
+      "versionSource": {
+        "kind": "tags",
+        "prefix": ""
+      },
+      "workflows": {
+        "release": {
+          "file": "release.yml",
+          "mode": "observe",
+          "ref": "refs/tags/*",
+          "publications": ["pkg:github/kjanat/dprint-plugin-tombi"]
+        },
+        "release-2": {
+          "file": "release.yml",
+          "mode": "observe",
+          "ref": "refs/heads/master",
+          "publications": []
+        }
+      }
+    }
+  },
+  "managers": ["workflow"]
+}
