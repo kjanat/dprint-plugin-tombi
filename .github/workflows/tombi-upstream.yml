@@ -36,9 +36,7 @@ jobs:
           gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" \
             --body "Tombi ${latest} is out; the plugin uses ${current}. See \"Updating\" in UPSTREAM.md."
 
-  # Moves Tombi to the newest dprint/vX.Y.Z-headless branch of the fork, or to
-  # the newest commit of the current one, in a pull request from the Beepboop
-  # App. Its token needs a run the owner started, so no push trigger.
+  # Update the engine dependencies, lockfile, and generated schema together.
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -50,7 +48,6 @@ jobs:
         with: { persist-credentials: false }
       - name: Select the newest fork branch
         id: version
-        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           current=$(grep -oE 'dprint/v[0-9]+\.[0-9]+\.[0-9]+-headless' Cargo.toml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
           latest=$(git ls-remote --heads https://github.com/kjanat/tombi 'dprint/v*-headless' \
@@ -64,15 +61,7 @@ jobs:
           if [[ "${latest}" == "${current}" || "$(printf '%s\n%s\n' "${current}" "${latest}" | sort -V | tail -1)" == "${current}" ]]; then
             exit 0
           fi
-          archive="tombi-cli-${latest}-x86_64-unknown-linux-musl.tar.gz"
-          digest=$(gh api "repos/tombi-toml/tombi/releases/tags/v${latest}" \
-            --jq ".assets[] | select(.name == \"${archive}\") | .digest" | sed -n 's/^sha256://p')
-          if [[ -z "${digest}" ]]; then
-            echo "::error::Couldn't read the digest of upstream v${latest}'s ${archive}"
-            exit 1
-          fi
           sed -i "s|dprint/v${current}-headless|dprint/v${latest}-headless|g" Cargo.toml
-          echo "${digest}  ${archive}" > .github/tombi-cli.sha256
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with: { toolchain: stable }
       - name: Update Cargo.lock and schema.json
@@ -92,4 +81,3 @@ jobs:
             Cargo.toml
             Cargo.lock
             schema.json
-            .github/tombi-cli.sha256
