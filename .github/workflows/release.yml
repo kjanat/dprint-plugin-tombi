@@ -187,13 +187,31 @@ jobs:
           url=$(gh release create "$TAG" plugin.wasm schema.json \
             --verify-tag --title "$TAG" \
             --notes-file release-notes.md --generate-notes)
+          test -n "$url"
           printf '%s\n' "$url"
           printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+      - name: Record the publication outcome
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
+        id: publication
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+          RELEASE_URL: ${{ steps.publish.outputs.url }}
+        run: |
+          report=$(jq -cn \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg version "$TAG" \
+            --arg result "$PUBLISH_OUTCOME" \
+            --arg url "$RELEASE_URL" '
+              [{id: ("github-release:" + $repository), manager: "github-release", name: $repository, version: $version}
+               + (if $result == "success" and $url != ""
+                  then {outcome: "succeeded", url: $url}
+                  else {outcome: "failed"}
+                  end)]')
+          printf 'report=%s\n' "$report" >> "$GITHUB_OUTPUT"
       - name: Report the GitHub release
-        if: github.event_name == 'workflow_dispatch'
+        if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && steps.publication.outcome == 'success' }}
         uses: kjanat/beepboop/actions/report@v1
         with:
           execution-id: ${{ inputs.beepboop_execution_id }}
-          publications: >-
-            [{"id":"github-release:${{ github.repository }}","manager":"github-release","name":"${{ github.repository }}",
-            "version":"${{ needs.plan.outputs.tag }}","url":"${{ steps.publish.outputs.url }}","outcome":"succeeded"}]
+          publications: ${{ steps.publication.outputs.report }}
