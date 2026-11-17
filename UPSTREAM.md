@@ -55,10 +55,11 @@ rewriting, import stubbing, or copied formatter in this repository.
 
 Prefer upstream non-browser feature support when it becomes available. Until
 then, rebase this small portability delta onto the chosen upstream release, and
-push it as `dprint/vX.Y.Z-headless`. The `update` job of `tombi-upstream.yml`
-(weekly, or run it by hand) then opens one pull request from the Beepboop App
-that points every Tombi dependency at the newest such branch, updates
-Cargo.lock, schema.json and `.github/tombi-cli.sha256`. Merging it releases the
-plugin. Require native tests, strict native/WASM Clippy, and the unchanged
-dprint-only import audit plus real CLI execution to pass. Do not expand the fork
-into an independently maintained formatting engine.
+push it as `dprint/vX.Y.Z-headless`. Renovate groups the six Tombi dependencies
+into one update. CI reads the CLI version from `Cargo.toml` and checks the
+downloaded archive against the digest in GitHub's release metadata. If the update changes
+`schema.json`, run the schema generator and include its output, or use the manual
+`Tombi upstream` workflow to generate the update through the Beepboop App.
+Merging the engine update releases the plugin. Require native tests, strict
+native/WASM Clippy, the dprint-only import audit, and real CLI execution to pass.
+Do not expand the fork into an independently maintained formatting engine.
