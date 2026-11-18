@@ -11,11 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      issues: write # open the rebase issue
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - name: Open an issue for a newer Tombi release
+      - name: Check for a newer upstream release
+        id: upstream
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           current=v$(grep -oE 'dprint/v[0-9]+\.[0-9]+\.[0-9]+-headless' Cargo.toml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
@@ -28,13 +30,32 @@ jobs:
           if [[ "$(printf '%s\n%s\n' "${current#v}" "${latest#v}" | sort -V | tail -1)" == "${current#v}" ]]; then
             exit 0
           fi
-          title="Update Tombi to ${latest}"
+          printf 'current=%s\nlatest=%s\n' "$current" "$latest" >> "$GITHUB_OUTPUT"
+      - uses: kjanat/beepboop/actions/token@v1
+        if: steps.upstream.outputs.latest != ''
+        id: beepboop
+        with: { permission-issues: write }
+      - name: Open the Tombi update issue
+        if: steps.upstream.outputs.latest != ''
+        env:
+          GH_TOKEN: ${{ steps.beepboop.outputs.token }}
+          CURRENT: ${{ steps.upstream.outputs.current }}
+          LATEST: ${{ steps.upstream.outputs.latest }}
+        run: |
+          title="Update Tombi to ${LATEST}"
           if [[ -n "$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --search "\"${title}\" in:title" --json number --jq '.[0].number')" ]]; then
             echo "An issue is open already"
             exit 0
           fi
-          gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" \
-            --body "Tombi ${latest} is out; the plugin uses ${current}. See \"Updating\" in UPSTREAM.md."
+          body=$(cat <<EOF
+          Update the plugin from Tombi \`${CURRENT}\` to [${LATEST}](https://github.com/tombi-toml/tombi/releases/tag/${LATEST}).
+
+          Rebase the portability patches onto \`${LATEST}\` and push \`dprint/${LATEST}-headless\` to \`kjanat/tombi\`. The updater will open a dependency PR.
+
+          [Fork update instructions](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/UPSTREAM.md#updating)
+          EOF
+          )
+          gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "$body"
 
   # Update the engine dependencies, lockfile, and generated schema together.
   update:
