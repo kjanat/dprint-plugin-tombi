@@ -25,6 +25,7 @@ jobs:
       tag: ${{ steps.tag.outputs.tag }}
       sha: ${{ steps.candidate.outputs.sha || steps.tag.outputs.sha }}
       candidate: ${{ steps.tag.outputs.candidate }}
+      draft: ${{ steps.beepboop.outputs.context && fromJSON(steps.beepboop.outputs.context).draftRelease.id || '' }}
     steps:
       - name: Read the approved Beepboop release
         if: github.event_name == 'workflow_dispatch'
@@ -173,7 +174,6 @@ jobs:
     needs: [plan, verify]
     runs-on: ubuntu-latest
     permissions: { contents: write, id-token: write }
-    outputs: { url: "${{ steps.publish.outputs.url }}" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -211,8 +211,26 @@ jobs:
         with:
           # The workflow token prevents a second run of this workflow on the tag push.
           token: ${{ github.token }}
+      - name: Upload the tested assets to the Beepboop draft
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          DRAFT_ID: ${{ needs.plan.outputs.draft }}
+        run: |
+          release=$(gh release view "$TAG" --json databaseId,isDraft --jq 'select(.isDraft) | .databaseId')
+          if [[ -z "$DRAFT_ID" || "$release" != "$DRAFT_ID" ]]; then
+            echo "::error::Expected Beepboop draft $DRAFT_ID for $TAG"
+            exit 1
+          fi
+          gh release upload "$TAG" plugin.wasm schema.json
+      - name: Publish the Beepboop draft and record the publication
+        if: github.event_name == 'workflow_dispatch'
+        uses: kjanat/beepboop/actions/publish-release@v1
+        with:
+          execution-id: ${{ inputs.beepboop_execution_id }}
       - name: Publish the tested artifact without replacing existing releases
-        id: publish
+        if: github.event_name == 'push'
         env: { GH_TOKEN: "${{ github.token }}", TAG: "${{ needs.plan.outputs.tag }}" }
         run: |
           cat > release-notes.md <<'EOF'
@@ -230,12 +248,9 @@ jobs:
           Or download `plugin.wasm` and reference its local path in your dprint config.
           See the README for sandbox limitations and configuration.
           EOF
-          url=$(gh release create "$TAG" plugin.wasm schema.json \
+          gh release create "$TAG" plugin.wasm schema.json \
             --verify-tag --title "$TAG" \
-            --notes-file release-notes.md --generate-notes)
-          test -n "$url"
-          printf '%s\n' "$url"
-          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+            --notes-file release-notes.md --generate-notes
       - name: Delete the published candidate branch
         if: needs.plan.outputs.candidate != ''
         continue-on-error: true
@@ -243,7 +258,7 @@ jobs:
         run: git push origin --delete "$CANDIDATE"
   report:
     needs: [plan, release]
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.plan.outputs.tag != '' }}
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.plan.outputs.tag != '' && needs.release.result != 'success' }}
     runs-on: ubuntu-latest
     permissions: { id-token: write }
     steps:
@@ -252,17 +267,13 @@ jobs:
         env:
           TAG: ${{ needs.plan.outputs.tag }}
           PUBLISH_RESULT: ${{ needs.release.result }}
-          RELEASE_URL: ${{ needs.release.outputs.url }}
         run: |
           report=$(jq -cn \
             --arg repository "$GITHUB_REPOSITORY" \
             --arg version "$TAG" \
-            --arg result "$PUBLISH_RESULT" \
-            --arg url "$RELEASE_URL" '
+            --arg result "$PUBLISH_RESULT" '
               [{id: ("github-release:" + $repository), manager: "github-release", name: $repository, version: $version}
-               + (if $url != ""
-                  then {outcome: "succeeded", url: $url}
-                  elif $result == "cancelled" then {outcome: "uncertain"}
+               + (if $result == "cancelled" then {outcome: "uncertain"}
                   elif $result == "skipped" then {outcome: "skipped"}
                   else {outcome: "failed"}
                   end)]')
