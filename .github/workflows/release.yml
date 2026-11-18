@@ -223,7 +223,23 @@ jobs:
             echo "::error::Expected Beepboop draft $DRAFT_ID for $TAG"
             exit 1
           fi
-          gh release upload "$TAG" plugin.wasm schema.json
+          assets=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?per_page=100")
+          missing=()
+          for file in plugin.wasm schema.json; do
+            uploaded=$(jq -c --arg name "$file" '.[][] | select(.name == $name)' <<< "$assets")
+            if [[ -z "$uploaded" ]]; then
+              missing+=("$file")
+              continue
+            fi
+            hash=$(sha256sum -- "$file")
+            if ! jq -e --arg digest "sha256:${hash%% *}" '.state == "uploaded" and .digest == $digest' <<< "$uploaded" >/dev/null; then
+              echo "::error::Existing draft asset $file does not match the tested file"
+              exit 1
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            gh release upload "$TAG" "${missing[@]}"
+          fi
       - name: Publish the Beepboop draft and record the publication
         if: github.event_name == 'workflow_dispatch'
         uses: kjanat/beepboop/actions/publish-release@v1
