@@ -20,10 +20,10 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions: { contents: write, id-token: write }
+    permissions: { contents: read, id-token: write }
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
-      sha: ${{ steps.tag.outputs.sha }}
+      sha: ${{ steps.candidate.outputs.sha || steps.tag.outputs.sha }}
       candidate: ${{ steps.tag.outputs.candidate }}
     steps:
       - name: Read the approved Beepboop release
@@ -36,6 +36,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
           ref: ${{ github.event_name == 'workflow_dispatch' && fromJSON(steps.beepboop.outputs.context).sourceSha || github.sha }}
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         if: github.event_name == 'push' && github.ref_type == 'branch'
@@ -131,14 +132,38 @@ jobs:
               bump("Cargo.toml", r'^(version\s*=\s*")')
               subprocess.run(["cargo", "update", "--workspace"], check=True)
               subprocess.run(["cargo", "run", "--locked", "--bin", "generate-schema", "--features", "schema"], check=True)
-              git(
-                  "-c", "user.name=github-actions[bot]",
-                  "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-                  "commit", "--message", version, "--", "Cargo.toml", "Cargo.lock", "schema.json",
-              )
               candidate = f"release-candidate/{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
-              git("push", "origin", f"HEAD:refs/heads/{candidate}")
           output(version, candidate)
+      - uses: kjanat/beepboop/actions/token@v1
+        if: steps.tag.outputs.candidate != ''
+        id: bot
+        with: { permission-contents: write }
+      - name: Create the signed release candidate as Beepboop
+        if: steps.tag.outputs.candidate != ''
+        id: candidate
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          CANDIDATE: ${{ steps.tag.outputs.candidate }}
+          SOURCE_SHA: ${{ steps.tag.outputs.sha }}
+          VERSION: ${{ steps.tag.outputs.tag }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/heads/$CANDIDATE" -f sha="$SOURCE_SHA" --silent
+          sha=$(jq -n --arg repo "$GITHUB_REPOSITORY" --arg ref "refs/heads/$CANDIDATE" \
+            --arg parent "$SOURCE_SHA" --arg version "$VERSION" \
+            --rawfile manifest Cargo.toml --rawfile lock Cargo.lock --rawfile schema schema.json '
+              {query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid signature { isValid } } } }",
+               variables: {input: {branch: {repositoryNameWithOwner: $repo, refName: $ref},
+                 expectedHeadOid: $parent, message: {headline: $version}, fileChanges: {additions: [
+                   {path: "Cargo.toml", contents: ($manifest | @base64)},
+                   {path: "Cargo.lock", contents: ($lock | @base64)},
+                   {path: "schema.json", contents: ($schema | @base64)}]}}}}
+            ' | gh api graphql --input - --jq '.data.createCommitOnBranch.commit | select(.signature.isValid == true) | .oid')
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::GitHub did not return a verified candidate commit'
+            exit 1
+          fi
+          printf 'sha=%s\n' "$sha" >> "$GITHUB_OUTPUT"
   verify:
     needs: plan
     if: needs.plan.outputs.tag != ''
