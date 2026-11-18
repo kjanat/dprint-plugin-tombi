@@ -35,6 +35,27 @@ def manifest_branch(text):
     return branch
 
 
+def update_manifest_branch(text, current, branch):
+    if current == branch:
+        return text
+
+    branch_value = re.compile(r'''(?:\bbranch|"branch"|'branch')\s*=\s*(['"])(?P<value>''' + re.escape(current) + r''')\1''')
+
+    def update(match):
+        start, end = match.span("value")
+        candidate = text[:start] + branch + text[end:]
+        # An identical assignment in a comment or another dependency stays intact.
+        dependencies = tomllib.loads(candidate)["dependencies"]
+        if any(dependencies[name]["branch"] == branch for name in ENGINE_PACKAGES):
+            return match[0].replace(current, branch)
+        return match[0]
+
+    updated = branch_value.sub(update, text)
+    if manifest_branch(updated) != branch:
+        raise ValueError(f"Could not update all Tombi dependencies to {branch}")
+    return updated
+
+
 def version(branch):
     return tuple(map(int, re.fullmatch(BRANCH, branch).groups()))
 
@@ -55,13 +76,19 @@ def select(current, listing):
 
 
 def require_locked_revision(text, branch, commit):
-    sources = {
-        unquote(package["source"])
-        for package in tomllib.loads(text)["package"]
-        if package.get("source", "").startswith(f"git+{FORK}?")
-    }
-    if sources != {f"git+{FORK}?branch={branch}#{commit}"}:
-        raise ValueError(f"Cargo.lock must resolve every Tombi crate to {branch} at {commit}; found {sorted(sources)}")
+    expected = f"git+{FORK}?branch={branch}#{commit}"
+    locked = set()
+    for package in tomllib.loads(text)["package"]:
+        name, source = package["name"], unquote(package.get("source", ""))
+        if name == "tombi" or name.startswith(("tombi-", "serde_tombi")) or source.startswith(f"git+{FORK}?"):
+            if source != expected:
+                raise ValueError(
+                    f"Cargo.lock must resolve every Tombi crate to {branch} at {commit}; "
+                    f"{name} uses {source or 'a local path'}"
+                )
+            locked.add(name)
+    if missing := sorted(set(ENGINE_PACKAGES) - locked):
+        raise ValueError(f"Cargo.lock is missing Tombi dependencies: {', '.join(missing)}")
 
 
 def upstream_base(branch, commit, *, fork=FORK, upstream=UPSTREAM):
@@ -86,16 +113,14 @@ def write_outputs(**outputs):
 
 def main():
     manifest = Path("Cargo.toml")
-    text = manifest.read_text(encoding="utf-8")
+    text = manifest.read_bytes().decode("utf-8")
     current = manifest_branch(text)
     match sys.argv[1:]:
         case ["select"]:
             branch, commit = select(current, git("ls-remote", "--heads", FORK, "dprint/v*-headless"))
-            updated = text.replace(f'"{current}"', f'"{branch}"')
-            if manifest_branch(updated) != branch:
-                raise ValueError(f"Could not update all Tombi dependencies to {branch}")
+            updated = update_manifest_branch(text, current, branch)
             if updated != text:
-                manifest.write_text(updated, encoding="utf-8")
+                manifest.write_bytes(updated.encode("utf-8"))
             write_outputs(branch=branch, commit=commit, version=".".join(map(str, version(branch))))
         case ["verify", branch, commit] if re.fullmatch(SHA, commit) and current == branch:
             require_locked_revision(Path("Cargo.lock").read_text(encoding="utf-8"), branch, commit)

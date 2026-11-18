@@ -8,6 +8,7 @@ import unittest
 updater = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts/tombi-upstream.py"))
 select = updater["select"]
 manifest_branch = updater["manifest_branch"]
+update_manifest_branch = updater["update_manifest_branch"]
 require_locked_revision = updater["require_locked_revision"]
 fork = updater["FORK"]
 packages = updater["ENGINE_PACKAGES"]
@@ -22,8 +23,12 @@ def ref(branch, commit):
     return f"{commit}\trefs/heads/{branch}\n"
 
 
+def lock_entry(name, branch, commit, repository=fork):
+    return f'[[package]]\nname = "{name}"\nsource = "git+{repository}?branch={branch.replace("/", "%2F")}#{commit}"\n'
+
+
 def locked(branch, commit):
-    return f'[[package]]\nsource = "git+{fork}?branch={branch.replace("/", "%2F")}#{commit}"\n'
+    return "".join(lock_entry(name, branch, commit) for name in packages)
 
 
 class TombiUpdaterTest(unittest.TestCase):
@@ -50,6 +55,30 @@ class TombiUpdaterTest(unittest.TestCase):
         for source in (locked(current, second), locked(current, first) + locked(newer, first)):
             with self.assertRaisesRegex(ValueError, "must resolve every Tombi crate"):
                 require_locked_revision(source, current, first)
+
+    def test_rejects_a_redirected_package_alongside_valid_fork_entries(self):
+        source = "".join(
+            lock_entry(name, current, first) for name in packages if name != "tombi-formatter"
+        )
+        source += lock_entry("tombi-formatter", current, first, "https://github.com/example/tombi")
+        with self.assertRaisesRegex(ValueError, "tombi-formatter uses"):
+            require_locked_revision(source, current, first)
+
+    def test_updates_mixed_quotes_and_leaves_other_branch_values_unchanged(self):
+        def dependencies(branch):
+            lines = (
+                f"{name} = {{ git = \"{fork}\", branch  =  {quote}{branch}{quote} }}"
+                for name, quote in zip(packages, ('"', "'") * 3)
+            )
+            return "[dependencies]\r\n" + "\r\n".join(lines) + "\r\n"
+
+        unrelated = (
+            f"# branch = '{current}'\r\n"
+            f"other = {{ git = 'https://github.com/example/other', branch = '{current}' }}\r\n"
+        )
+        updated = update_manifest_branch(dependencies(current) + unrelated, current, newer)
+        self.assertEqual(updated, dependencies(newer) + unrelated)
+        self.assertEqual(manifest_branch(updated), newer)
 
     def test_requires_the_matching_upstream_tag_as_an_ancestor(self):
         with tempfile.TemporaryDirectory() as repository:
