@@ -56,5 +56,16 @@
       }
     }
   },
-  "managers": ["workflow"]
+  "managers": ["workflow"],
+  "subscriptions": [
+    {
+      "id": "tombi-release-issue",
+      "source": "npm:tombi",
+      "event": "package.version.changed",
+      "issue": {
+        "title": "Update Tombi to v{version}",
+        "body": "Update the plugin to [Tombi v{version}](https://www.npmjs.com/package/tombi/v/{version}).\n\nRebase the portability patches onto `v{version}` and push `dprint/v{version}-headless` to `kjanat/tombi`. The updater will open a dependency PR.\n\n[Fork update instructions](https://github.com/kjanat/dprint-plugin-tombi/blob/master/UPSTREAM.md#updating)"
+      }
+    }
+  ]
 }

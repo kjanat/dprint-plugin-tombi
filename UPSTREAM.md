@@ -53,6 +53,8 @@ rewriting, import stubbing, or copied formatter in this repository.
 
 ## Updating
 
+Beepboop opens an issue when a new version of `tombi` is published to npm.
+
 Prefer upstream non-browser feature support when it becomes available. Until
 then, rebase this small portability delta onto the chosen upstream release, and
 push it as `dprint/vX.Y.Z-headless`. The scheduled `Tombi upstream` workflow
