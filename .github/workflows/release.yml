@@ -1,4 +1,5 @@
 name: Release
+run-name: ${{ inputs.beepboop_title || github.event.head_commit.message || github.ref_name }}
 
 # A pushed tag is released as it is. A push to master that updates Tombi (the
 # resolved Tombi commit in Cargo.lock) is released as the next
@@ -7,6 +8,10 @@ name: Release
 # master ruleset requires CI for every push and GitHub Actions can't bypass
 # the ruleset of a personal repository.
 on:
+  workflow_dispatch:
+    inputs:
+      beepboop_execution_id: { description: Beepboop execution ID, type: string, required: true }
+      beepboop_title: { description: Release run title, type: string }
   push:
     tags: ["[0-9]+.[0-9]+.[0-9]+"]
     branches: [master]
@@ -16,16 +21,31 @@ concurrency: { group: release, cancel-in-progress: false }
 jobs:
   plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: { contents: write } # push the tag of a Tombi update
+    timeout-minutes: 20
+    permissions: { contents: write, id-token: write }
     outputs: { tag: "${{ steps.tag.outputs.tag }}" }
     steps:
+      - name: Read the approved Beepboop release
+        if: github.event_name == 'workflow_dispatch'
+        id: beepboop
+        uses: kjanat/beepboop/actions/begin@v1
+        with:
+          operation: promote
+          execution-id: ${{ inputs.beepboop_execution_id }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && fromJSON(steps.beepboop.outputs.context).sourceSha || github.sha }}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        with: { toolchain: stable }
       - name: The tag to release
         id: tag
         shell: python
-        env: { BEFORE: "${{ github.event.before }}" }
+        env:
+          BEFORE: ${{ github.event.before }}
+          BEEPBOOP_VERSION: ${{ github.event_name == 'workflow_dispatch' && fromJSON(steps.beepboop.outputs.context).version || '' }}
+          BEEPBOOP_SOURCE: ${{ github.event_name == 'workflow_dispatch' && fromJSON(steps.beepboop.outputs.context).sourceSha || '' }}
         run: |
           import os
           import re
@@ -52,6 +72,18 @@ jobs:
                       commits.add(match.group(1))
               return sorted(commits)
 
+
+          if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
+              version = os.environ["BEEPBOOP_VERSION"]
+              source = os.environ["BEEPBOOP_SOURCE"]
+              if not re.fullmatch(r"[0-9a-f]{40}", source) or git("rev-parse", "HEAD").strip() != source:
+                  raise SystemExit("Checkout does not match the approved release commit")
+              with open("Cargo.toml", "rb") as manifest:
+                  current = tomllib.load(manifest)["package"]["version"]
+              if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or version != current:
+                  raise SystemExit(f"Approved version {version!r} does not match package version {current!r}")
+              output(version)
+              raise SystemExit(0)
 
           if os.environ["GITHUB_REF_TYPE"] == "tag":
               output(os.environ["GITHUB_REF_NAME"])
@@ -91,18 +123,25 @@ jobs:
 
 
           if version != current:
-              # only the version, keeping the manifest's alignment
+              # Keep the manifest's alignment and regenerate the derived files.
               bump("Cargo.toml", r'^(version\s*=\s*")')
-              bump("Cargo.lock", r'(name = "dprint-plugin-tombi"\nversion = ")')
+              subprocess.run(["cargo", "update", "--workspace"], check=True)
+              subprocess.run(["cargo", "run", "--locked", "--bin", "generate-schema", "--features", "schema"], check=True)
               git("switch", "--create", f"release/{version}")
               git(
                   "-c", "user.name=github-actions[bot]",
                   "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-                  "commit", "--all", "--message", version,
+                  "commit", "--message", version, "--", "Cargo.toml", "Cargo.lock", "schema.json",
               )
           git("tag", version)
           git("push", "origin", f"refs/tags/{version}")
           output(version)
+      - name: Push the authorized version tag
+        if: github.event_name == 'workflow_dispatch'
+        uses: kjanat/beepboop/actions/publish-refs@v1
+        with:
+          # The workflow token prevents a second run of this workflow on the tag push.
+          token: ${{ github.token }}
   verify:
     needs: plan
     if: needs.plan.outputs.tag != ''
@@ -112,6 +151,7 @@ jobs:
     needs: [plan, verify]
     runs-on: ubuntu-latest
     permissions: { contents: write }
+    outputs: { url: "${{ steps.publish.outputs.url }}" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false, ref: "${{ needs.plan.outputs.tag }}" }
@@ -131,6 +171,7 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with: { name: plugin }
       - name: Publish the tested artifact without replacing existing releases
+        id: publish
         env: { GH_TOKEN: "${{ github.token }}", TAG: "${{ needs.plan.outputs.tag }}" }
         run: |
           cat > release-notes.md <<'EOF'
@@ -148,6 +189,40 @@ jobs:
           Or download `plugin.wasm` and reference its local path in your dprint config.
           See the README for sandbox limitations and configuration.
           EOF
-          gh release create "$TAG" plugin.wasm schema.json \
+          url=$(gh release create "$TAG" plugin.wasm schema.json \
             --verify-tag --title "$TAG" \
-            --notes-file release-notes.md --generate-notes
+            --notes-file release-notes.md --generate-notes)
+          test -n "$url"
+          printf '%s\n' "$url"
+          printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+  report:
+    needs: [plan, release]
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.plan.outputs.tag != '' }}
+    runs-on: ubuntu-latest
+    permissions: { id-token: write }
+    steps:
+      - name: Record the publication outcome
+        id: publication
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+          PUBLISH_RESULT: ${{ needs.release.result }}
+          RELEASE_URL: ${{ needs.release.outputs.url }}
+        run: |
+          report=$(jq -cn \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg version "$TAG" \
+            --arg result "$PUBLISH_RESULT" \
+            --arg url "$RELEASE_URL" '
+              [{id: ("github-release:" + $repository), manager: "github-release", name: $repository, version: $version}
+               + (if $url != ""
+                  then {outcome: "succeeded", url: $url}
+                  elif $result == "cancelled" then {outcome: "uncertain"}
+                  elif $result == "skipped" then {outcome: "skipped"}
+                  else {outcome: "failed"}
+                  end)]')
+          printf 'report=%s\n' "$report" >> "$GITHUB_OUTPUT"
+      - name: Report the GitHub release
+        uses: kjanat/beepboop/actions/report@v1
+        with:
+          execution-id: ${{ inputs.beepboop_execution_id }}
+          publications: ${{ steps.publication.outputs.report }}

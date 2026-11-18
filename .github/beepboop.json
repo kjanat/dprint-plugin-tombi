@@ -1,0 +1,60 @@
+{
+  "$schema": "https://beepboop.kjanat.dev/schema/v1.json",
+  "streams": {
+    "main": {
+      "packages": [],
+      "versionScope": "one-for-stream",
+      "mustPublish": [],
+      "versionSource": {
+        "kind": "tags",
+        "prefix": ""
+      },
+      "versionFiles": [
+        {
+          "path": "Cargo.toml",
+          "format": "toml",
+          "key": ["package", "version"]
+        },
+        {
+          "path": "schema.json",
+          "format": "json",
+          "key": ["$id"],
+          "template": "https://plugins.dprint.dev/kjanat/tombi/{version}/schema.json"
+        }
+      ],
+      "startFrom": [{ "via": "cli" }, { "via": "dashboard" }],
+      "prepare": {
+        "strategy": "managed",
+        "versionLands": "via-version-pr",
+        "workflow": {
+          "file": "prepare-release.yml",
+          "mode": "dispatch",
+          "ref": "refs/heads/master"
+        }
+      },
+      "promote": {
+        "workflow": {
+          "file": "release.yml",
+          "mode": "dispatch",
+          "ref": "refs/heads/master",
+          "publications": ["github-release:kjanat/dprint-plugin-tombi"],
+          "refs": { "phase": "version", "prefix": "", "signed": true }
+        }
+      },
+      "workflows": {
+        "tag-release": {
+          "file": "release.yml",
+          "mode": "observe",
+          "ref": "refs/tags/*",
+          "publications": ["pkg:github/kjanat/dprint-plugin-tombi"]
+        },
+        "tombi-update": {
+          "file": "release.yml",
+          "mode": "observe",
+          "ref": "refs/heads/master"
+        }
+      }
+    }
+  },
+  "managers": ["workflow"]
+}

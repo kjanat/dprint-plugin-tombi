@@ -1,0 +1,39 @@
+name: Prepare release
+run-name: ${{ inputs.beepboop_title || format('Release operation {0}', inputs.beepboop_execution_id) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      beepboop_execution_id: { description: Beepboop execution ID, type: string, required: true }
+      beepboop_title: { description: Release run title, type: string }
+
+permissions: { contents: read }
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: kjanat/beepboop/actions/begin@v1
+        id: beepboop
+        with:
+          operation: prepare
+          execution-id: ${{ inputs.beepboop_execution_id }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ fromJSON(steps.beepboop.outputs.context).sourceSha }}
+          persist-credentials: false
+      - uses: kjanat/beepboop/actions/prepare@v1
+        with:
+          mode: apply
+          context: ${{ steps.beepboop.outputs.context }}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with: { toolchain: stable }
+      - name: Regenerate the lockfile and schema for the prepared version
+        run: |
+          cargo update --workspace
+          cargo run --locked --bin generate-schema --features schema
+      - uses: kjanat/beepboop/actions/prepare@v1
+        with:
+          mode: submit
+          context: ${{ steps.beepboop.outputs.context }}
