@@ -29,9 +29,10 @@ jobs:
           context: ${{ steps.beepboop.outputs.context }}
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with: { toolchain: stable }
-      - name: Refresh the workspace version in Cargo.lock
-        run: cargo update --workspace
-      - run: cargo metadata --locked --format-version 1 > /dev/null
+      - name: Regenerate the lockfile and schema for the prepared version
+        run: |
+          cargo update --workspace
+          cargo run --locked --bin generate-schema --features schema
       - uses: kjanat/beepboop/actions/prepare@v1
         with:
           mode: submit

@@ -21,7 +21,7 @@ concurrency: { group: release, cancel-in-progress: false }
 jobs:
   plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     permissions: { contents: write, id-token: write }
     outputs: { tag: "${{ steps.tag.outputs.tag }}" }
     steps:
@@ -36,6 +36,9 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && fromJSON(steps.beepboop.outputs.context).sourceSha || github.sha }}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        with: { toolchain: stable }
       - name: The tag to release
         id: tag
         shell: python
@@ -120,14 +123,15 @@ jobs:
 
 
           if version != current:
-              # only the version, keeping the manifest's alignment
+              # Keep the manifest's alignment and regenerate the derived files.
               bump("Cargo.toml", r'^(version\s*=\s*")')
-              bump("Cargo.lock", r'(name = "dprint-plugin-tombi"\nversion = ")')
+              subprocess.run(["cargo", "update", "--workspace"], check=True)
+              subprocess.run(["cargo", "run", "--locked", "--bin", "generate-schema", "--features", "schema"], check=True)
               git("switch", "--create", f"release/{version}")
               git(
                   "-c", "user.name=github-actions[bot]",
                   "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-                  "commit", "--all", "--message", version,
+                  "commit", "--message", version, "--", "Cargo.toml", "Cargo.lock", "schema.json",
               )
           git("tag", version)
           git("push", "origin", f"refs/tags/{version}")
