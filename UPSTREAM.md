@@ -60,6 +60,9 @@ then, rebase this small portability delta onto the chosen upstream release, and
 push it as `dprint/vX.Y.Z-headless`. The scheduled `Tombi upstream` workflow
 opens a PR through the Beepboop App with the six Tombi dependencies,
 `Cargo.lock`, and generated `schema.json`. You can also run it manually.
+The updater checks that all six dependencies use one fork branch, then verifies
+that Cargo resolves the selected fork commit and that it descends from the
+matching upstream release tag. The PR links the exact fork diff for review.
 CI reads the matching CLI version from `Cargo.toml` and verifies the downloaded
 archive against the digest in GitHub's release metadata. Merging the engine
 update releases the plugin. Require native tests, strict

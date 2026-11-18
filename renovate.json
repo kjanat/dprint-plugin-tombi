@@ -11,7 +11,7 @@
   "packageRules": [
     {
       "description": "Merge non-major updates with GitHub's auto-merge, which waits for the CI checks the master ruleset requires.",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest", "lockFileMaintenance"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
@@ -20,6 +20,11 @@
       "description": "Require dashboard approval before opening major upgrade PRs.",
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Require a manual merge for lockfile maintenance because a Tombi revision change publishes the plugin.",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "automerge": false
     }
   ]
 }

@@ -3,10 +3,8 @@ run-name: ${{ inputs.beepboop_title || github.event.head_commit.message || githu
 
 # A pushed tag is released as it is. A push to master that updates Tombi (the
 # resolved Tombi commit in Cargo.lock) is released as the next
-# patch version: the first release is the version in Cargo.toml. Only its tag
-# is pushed, on a commit that bumps the version on top of master, as the
-# master ruleset requires CI for every push and GitHub Actions can't bypass
-# the ruleset of a personal repository.
+# patch version: the first release is the version in Cargo.toml. A temporary
+# branch gives CI the version-bump commit. The release job tags it after CI.
 on:
   workflow_dispatch:
     inputs:
@@ -23,7 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions: { contents: write, id-token: write }
-    outputs: { tag: "${{ steps.tag.outputs.tag }}" }
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      sha: ${{ steps.tag.outputs.sha }}
+      candidate: ${{ steps.tag.outputs.candidate }}
     steps:
       - name: Read the approved Beepboop release
         if: github.event_name == 'workflow_dispatch'
@@ -57,9 +58,11 @@ jobs:
               return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
 
 
-          def output(tag):
+          def output(tag, candidate=""):
               with open(os.environ["GITHUB_OUTPUT"], "a") as file:
                   file.write(f"tag={tag}\n")
+                  if tag:
+                      file.write(f"sha={git('rev-parse', 'HEAD').strip()}\ncandidate={candidate}\n")
 
 
           def tombi_revisions(revision):
@@ -122,39 +125,35 @@ jobs:
                   file.write(text)
 
 
+          candidate = ""
           if version != current:
               # Keep the manifest's alignment and regenerate the derived files.
               bump("Cargo.toml", r'^(version\s*=\s*")')
               subprocess.run(["cargo", "update", "--workspace"], check=True)
               subprocess.run(["cargo", "run", "--locked", "--bin", "generate-schema", "--features", "schema"], check=True)
-              git("switch", "--create", f"release/{version}")
               git(
                   "-c", "user.name=github-actions[bot]",
                   "-c", "user.email=41898282+github-actions[bot]@users.noreply.github.com",
                   "commit", "--message", version, "--", "Cargo.toml", "Cargo.lock", "schema.json",
               )
-          git("tag", version)
-          git("push", "origin", f"refs/tags/{version}")
-          output(version)
-      - name: Push the authorized version tag
-        if: github.event_name == 'workflow_dispatch'
-        uses: kjanat/beepboop/actions/publish-refs@v1
-        with:
-          # The workflow token prevents a second run of this workflow on the tag push.
-          token: ${{ github.token }}
+              candidate = f"release-candidate/{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+              git("push", "origin", f"HEAD:refs/heads/{candidate}")
+          output(version, candidate)
   verify:
     needs: plan
     if: needs.plan.outputs.tag != ''
     uses: "$/.github/workflows/ci.yml"
-    with: { ref: "${{ needs.plan.outputs.tag }}" }
+    with: { ref: "${{ needs.plan.outputs.sha }}" }
   release:
     needs: [plan, verify]
     runs-on: ubuntu-latest
-    permissions: { contents: write }
+    permissions: { contents: write, id-token: write }
     outputs: { url: "${{ steps.publish.outputs.url }}" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { persist-credentials: false, ref: "${{ needs.plan.outputs.tag }}" }
+        with:
+          persist-credentials: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+          ref: ${{ needs.plan.outputs.sha }}
       - name: Validate bare semver and package version
         env: { TAG: "${{ needs.plan.outputs.tag }}" }
         shell: python
@@ -170,6 +169,23 @@ jobs:
               raise SystemExit(f"Tag {tag!r} does not match package version {version!r}")
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with: { name: plugin }
+      - name: Push the verified version tag
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        env: { TAG: "${{ needs.plan.outputs.tag }}" }
+        run: |
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$(git rev-parse HEAD)"
+          else
+            git tag "$TAG" HEAD
+          fi
+          git push origin "refs/tags/$TAG"
+      - name: Push the authorized version tag
+        if: github.event_name == 'workflow_dispatch'
+        uses: kjanat/beepboop/actions/publish-refs@v1
+        env: { BEEPBOOP_EXECUTION_ID: "${{ inputs.beepboop_execution_id }}" }
+        with:
+          # The workflow token prevents a second run of this workflow on the tag push.
+          token: ${{ github.token }}
       - name: Publish the tested artifact without replacing existing releases
         id: publish
         env: { GH_TOKEN: "${{ github.token }}", TAG: "${{ needs.plan.outputs.tag }}" }
@@ -195,6 +211,11 @@ jobs:
           test -n "$url"
           printf '%s\n' "$url"
           printf 'url=%s\n' "$url" >> "$GITHUB_OUTPUT"
+      - name: Delete the published candidate branch
+        if: needs.plan.outputs.candidate != ''
+        continue-on-error: true
+        env: { CANDIDATE: "${{ needs.plan.outputs.candidate }}" }
+        run: git push origin --delete "$CANDIDATE"
   report:
     needs: [plan, release]
     if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.plan.outputs.tag != '' }}
