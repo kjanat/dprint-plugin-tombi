@@ -8,7 +8,9 @@ with dprint. Do not add a JS runtime, process plugin, copied formatter or
 post-link import stubs. All Tombi dependencies use the same fork branch.
 `Cargo.lock` records the resolved commit.
 
-The dependency is based directly on an upstream release with a small portability
+Before it opens an update PR, the Tombi updater checks that Cargo.lock resolves
+every Tombi fork crate to the selected branch and exact commit. The dependency
+is based directly on an upstream release with a small portability
 delta in the existing Tombi fork. See UPSTREAM.md for provenance and
 hash-seeding tradeoffs. Keep the formatter/parser algorithms unchanged. Prefer
 upstream non-browser feature support when available rather than growing the
@@ -35,6 +37,7 @@ dprint; Node is not required to build or run the plugin.
 ## Verification
 
 ```sh
+python3 -m unittest discover -s tests -p test_tombi_upstream.py
 cargo test --locked --all-features
 cargo lint
 cargo lint-wasm

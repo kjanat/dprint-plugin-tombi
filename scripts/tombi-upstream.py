@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
-from urllib.parse import unquote
+from urllib.parse import parse_qsl
 
 
 FORK = "https://github.com/kjanat/tombi"
@@ -76,12 +76,18 @@ def select(current, listing):
 
 
 def require_locked_revision(text, branch, commit):
-    expected = f"git+{FORK}?branch={branch}#{commit}"
+    fork_source = f"git+{FORK}"
     locked = set()
     for package in tomllib.loads(text)["package"]:
-        name, source = package["name"], unquote(package.get("source", ""))
-        if name == "tombi" or name.startswith(("tombi-", "serde_tombi")) or source.startswith(f"git+{FORK}?"):
-            if source != expected:
+        name, source = package["name"], package.get("source", "")
+        location, _, revision = source.partition("#")
+        repository, _, query = location.partition("?")
+        if name == "tombi" or name.startswith(("tombi-", "serde_tombi")) or repository == fork_source:
+            if (
+                repository != fork_source
+                or parse_qsl(query, keep_blank_values=True) != [("branch", branch)]
+                or revision != commit
+            ):
                 raise ValueError(
                     f"Cargo.lock must resolve every Tombi crate to {branch} at {commit}; "
                     f"{name} uses {source or 'a local path'}"

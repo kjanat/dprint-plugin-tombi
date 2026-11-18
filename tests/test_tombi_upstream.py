@@ -64,6 +64,12 @@ class TombiUpdaterTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "tombi-formatter uses"):
             require_locked_revision(source, current, first)
 
+    def test_rejects_queryless_fork_packages_alongside_valid_fork_entries(self):
+        for revision in (first, second):
+            source = locked(current, first) + f'[[package]]\nname = "headless-support"\nsource = "git+{fork}#{revision}"\n'
+            with self.assertRaisesRegex(ValueError, "headless-support uses"):
+                require_locked_revision(source, current, first)
+
     def test_updates_mixed_quotes_and_leaves_other_branch_values_unchanged(self):
         def dependencies(branch):
             lines = (
